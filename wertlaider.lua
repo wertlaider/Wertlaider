@@ -1,4 +1,4 @@
--- wertlaider beta v0.1
+-- wertlaider beta v0.3
 -- Slop TD hub
 
 local Players = game:GetService("Players")
@@ -9,6 +9,8 @@ local VIM = game:GetService("VirtualInputManager")
 
 local LP = Players.LocalPlayer
 local pg = LP:WaitForChild("PlayerGui")
+
+local ICON_ID = "rbxassetid://130176754065007"
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
@@ -317,7 +319,7 @@ local function sendDiscord(full)
         embeds = {{
             title = "wertlaider · " .. LP.Name,
             description = "`" .. LP.DisplayName .. "` · `" .. LP.UserId .. "`",
-            color = 0xAA5AFF,
+            color = 0x3C8CFF,
             fields = fields,
             footer = { text = "wertlaider beta" },
             timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
@@ -335,122 +337,97 @@ end
 local Window = Rayfield:CreateWindow({
     Name = "wertlaider",
     LoadingTitle = "wertlaider beta",
-    LoadingSubtitle = "Slop TD · v0.1",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "wertlaider",
-        FileName = "config",
-    },
+    LoadingSubtitle = "Slop TD · v0.3",
+    ConfigurationSaving = { Enabled = true, FolderName = "wertlaider", FileName = "config" },
     KeySystem = false,
 })
 
 local T1 = Window:CreateTab("Anti-Macro", 4483362458)
-T1:CreateToggle({
-    Name = "Auto Anti-Macro", CurrentValue = false, Flag = "am_on",
-    Callback = function(v) W.AntimacroOn = v end,
-})
-T1:CreateSlider({
-    Name = "Задержка min (сек)", Range = {0.1, 5.0}, Increment = 0.1, Suffix = "s",
-    CurrentValue = 0.4, Flag = "am_min",
-    Callback = function(v) W.AntimacroMin = v end,
-})
-T1:CreateSlider({
-    Name = "Задержка max (сек)", Range = {0.2, 8.0}, Increment = 0.1, Suffix = "s",
-    CurrentValue = 1.0, Flag = "am_max",
-    Callback = function(v) W.AntimacroMax = v end,
-})
-T1:CreateParagraph({
-    Title = "Anti-Macro",
-    Content = "Ловим Check → UUID → Respond через 0.4-1.0 сек. Fallback: тап кнопки.",
-})
+T1:CreateToggle({Name = "Auto Anti-Macro", CurrentValue = false, Flag = "am_on", Callback = function(v) W.AntimacroOn = v end})
+T1:CreateSlider({Name = "Задержка min (сек)", Range = {0.1, 5.0}, Increment = 0.1, Suffix = "s", CurrentValue = 0.4, Flag = "am_min", Callback = function(v) W.AntimacroMin = v end})
+T1:CreateSlider({Name = "Задержка max (сек)", Range = {0.2, 8.0}, Increment = 0.1, Suffix = "s", CurrentValue = 1.0, Flag = "am_max", Callback = function(v) W.AntimacroMax = v end})
+T1:CreateParagraph({Title = "Anti-Macro", Content = "Check → UUID → Respond 0.4-1.0с. Fallback: тап."})
 
 local T2 = Window:CreateTab("Auto Place", 4483362458)
-T2:CreateToggle({
-    Name = "Auto Place", CurrentValue = false, Flag = "ap_on",
-    Callback = function(v) W.AutoPlaceOn = v end,
-})
-T2:CreateSlider({
-    Name = "Задержка между башнями", Range = {1.0, 20.0}, Increment = 0.5, Suffix = "s",
-    CurrentValue = 4.0, Flag = "ap_delay",
-    Callback = function(v) W.PlaceDelay = v end,
-})
-T2:CreateSlider({
-    Name = "Рандомизация %", Range = {0, 100}, Increment = 5, Suffix = "%",
-    CurrentValue = 40, Flag = "ap_rand",
-    Callback = function(v) W.PlaceRandom = v end,
-})
-T2:CreateParagraph({
-    Title = "Как работает",
-    Content = "GetPlayerPlacement → точки. Спавн со слота + рандом + сдвиг ±0.3 studs.",
-})
+T2:CreateToggle({Name = "Auto Place", CurrentValue = false, Flag = "ap_on", Callback = function(v) W.AutoPlaceOn = v end})
+T2:CreateSlider({Name = "Задержка между башнями", Range = {1.0, 20.0}, Increment = 0.5, Suffix = "s", CurrentValue = 4.0, Flag = "ap_delay", Callback = function(v) W.PlaceDelay = v end})
+T2:CreateSlider({Name = "Рандомизация %", Range = {0, 100}, Increment = 5, Suffix = "%", CurrentValue = 40, Flag = "ap_rand", Callback = function(v) W.PlaceRandom = v end})
+T2:CreateParagraph({Title = "Как работает", Content = "GetPlayerPlacement → точки. Спавн + рандом + сдвиг ±0.3 studs."})
 
 local T3 = Window:CreateTab("Auto Upgrade", 4483362458)
-T3:CreateToggle({
-    Name = "Auto Upgrade", CurrentValue = false, Flag = "au_on",
-    Callback = function(v) W.AutoUpgradeOn = v end,
-})
-T3:CreateSlider({
-    Name = "Задержка между апгрейдами", Range = {1.0, 30.0}, Increment = 0.5, Suffix = "s",
-    CurrentValue = 8.0, Flag = "au_delay",
-    Callback = function(v) W.UpgradeDelay = v end,
-})
-T3:CreateParagraph({
-    Title = "Как работает",
-    Content = "Скан своих башен → сортировка по уровню → апгрейд самой слабой.",
-})
+T3:CreateToggle({Name = "Auto Upgrade", CurrentValue = false, Flag = "au_on", Callback = function(v) W.AutoUpgradeOn = v end})
+T3:CreateSlider({Name = "Задержка", Range = {1.0, 30.0}, Increment = 0.5, Suffix = "s", CurrentValue = 8.0, Flag = "au_delay", Callback = function(v) W.UpgradeDelay = v end})
+T3:CreateParagraph({Title = "Как работает", Content = "Скан своих башен → сортировка → апгрейд самой слабой."})
 
 local T4 = Window:CreateTab("Skip / Speed", 4483362458)
-T4:CreateToggle({
-    Name = "Auto Skip Wave", CurrentValue = false, Flag = "as_on",
-    Callback = function(v) W.AutoSkipOn = v end,
-})
-T4:CreateToggle({
-    Name = "Auto Speed", CurrentValue = false, Flag = "asp_on",
-    Callback = function(v) W.AutoSpeedOn = v end,
-})
-T4:CreateSlider({
-    Name = "Speed Value", Range = {1, 5}, Increment = 1, Suffix = "x",
-    CurrentValue = 5, Flag = "asp_val",
-    Callback = function(v) W.SpeedValue = v end,
-})
+T4:CreateToggle({Name = "Auto Skip Wave", CurrentValue = false, Flag = "as_on", Callback = function(v) W.AutoSkipOn = v end})
+T4:CreateToggle({Name = "Auto Speed", CurrentValue = false, Flag = "asp_on", Callback = function(v) W.AutoSpeedOn = v end})
+T4:CreateSlider({Name = "Speed Value", Range = {1, 5}, Increment = 1, Suffix = "x", CurrentValue = 5, Flag = "asp_val", Callback = function(v) W.SpeedValue = v end})
 
 local T5 = Window:CreateTab("Discord", 4483362458)
-T5:CreateInput({
-    Name = "Webhook URL",
-    PlaceholderText = "https://discord.com/api/webhooks/...",
-    CurrentValue = "", Flag = "wh_url",
-    Callback = function(v) W.WebhookURL = v end,
-})
-T5:CreateToggle({
-    Name = "Enable Webhook", CurrentValue = false, Flag = "wh_on",
-    Callback = function(v) W.WebhookOn = v end,
-})
-T5:CreateButton({
-    Name = "SEND NOW (валюта)",
-    Callback = function()
-        local ok, err = sendDiscord(false)
-        if ok then Rayfield:Notify({Title = "wertlaider", Content = "Отправлено", Duration = 2})
-        else Rayfield:Notify({Title = "wertlaider", Content = "Ошибка: " .. tostring(err), Duration = 3}) end
-    end,
-})
-T5:CreateButton({
-    Name = "SEND FULL (валюта + башни)",
-    Callback = function()
-        local ok, err = sendDiscord(true)
-        if ok then Rayfield:Notify({Title = "wertlaider", Content = "Full отчёт", Duration = 2})
-        else Rayfield:Notify({Title = "wertlaider", Content = "Ошибка: " .. tostring(err), Duration = 3}) end
-    end,
-})
+T5:CreateInput({Name = "Webhook URL", PlaceholderText = "https://discord.com/api/webhooks/...", CurrentValue = "", Flag = "wh_url", Callback = function(v) W.WebhookURL = v end})
+T5:CreateToggle({Name = "Enable Webhook", CurrentValue = false, Flag = "wh_on", Callback = function(v) W.WebhookOn = v end})
+T5:CreateButton({Name = "SEND NOW (валюта)", Callback = function()
+    local ok, err = sendDiscord(false)
+    if ok then Rayfield:Notify({Title = "wertlaider", Content = "Отправлено", Duration = 2})
+    else Rayfield:Notify({Title = "wertlaider", Content = "Ошибка: " .. tostring(err), Duration = 3}) end
+end})
+T5:CreateButton({Name = "SEND FULL (валюта + башни)", Callback = function()
+    local ok, err = sendDiscord(true)
+    if ok then Rayfield:Notify({Title = "wertlaider", Content = "Full отчёт", Duration = 2})
+    else Rayfield:Notify({Title = "wertlaider", Content = "Ошибка: " .. tostring(err), Duration = 3}) end
+end})
 
 local T6 = Window:CreateTab("Info", 4483362458)
-T6:CreateParagraph({
-    Title = "wertlaider beta v0.1",
-    Content = "Свой хаб для Slop TD.\nAntiMacro + AutoPlace + AutoUpgrade + Skip/Speed + Discord.",
-})
-T6:CreateParagraph({
-    Title = "Скоро",
-    Content = "AutoSell · AutoAbility · AutoVote · AutoLobby · AutoSummon · AutoCrate · FPS Boost · Black Screen · HideName · WalkAround",
-})
+T6:CreateParagraph({Title = "wertlaider beta v0.3", Content = "Свой хаб для Slop TD.\nAntiMacro + AutoPlace + AutoUpgrade + Skip/Speed + Discord."})
+T6:CreateParagraph({Title = "Скоро", Content = "AutoSell · AutoAbility · AutoVote · AutoLobby · AutoSummon · AutoCrate · FPS Boost · BlackScreen · HideName · WalkAround"})
 
-log("wertlaider beta v0.1 loaded")
-Rayfield:Notify({ Title = "wertlaider", Content = "beta v0.1 загружен", Duration = 3 })
+-- FLOATING BUTTON (без контура)
+local floatGui = Instance.new("ScreenGui")
+floatGui.Name = "wertlaider_btn"
+floatGui.ResetOnSpawn = false
+floatGui.IgnoreGuiInset = true
+floatGui.DisplayOrder = 9999
+floatGui.Parent = (gethui and gethui()) or pg
+
+local btn = Instance.new("ImageButton")
+btn.Name = "ww"
+btn.Size = UDim2.new(0, 58, 0, 58)
+btn.Position = UDim2.new(0, 22, 0, 120)
+btn.BackgroundTransparency = 1
+btn.Image = ICON_ID
+btn.ScaleType = Enum.ScaleType.Fit
+btn.ZIndex = 9000
+btn.Parent = floatGui
+Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+local dragging, moved, d0, p0 = false, false, nil, nil
+btn.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        moved = false
+        d0 = i.Position
+        p0 = btn.Position
+        i.Changed:Connect(function()
+            if i.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+btn.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseMovement) then
+        local d = i.Position - d0
+        if d.Magnitude > 8 then
+            moved = true
+            btn.Position = UDim2.new(0, p0.X.Offset + d.X, 0, p0.Y.Offset + d.Y)
+        end
+    end
+end)
+btn.MouseButton1Click:Connect(function()
+    if moved then return end
+    pcall(function()
+        VIM:SendKeyEvent(true, Enum.KeyCode.RightShift, false, game)
+    end)
+end)
+
+log("wertlaider beta v0.3 loaded")
+Rayfield:Notify({ Title = "wertlaider", Content = "v0.3 загружен", Duration = 3 })
