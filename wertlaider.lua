@@ -106,11 +106,9 @@ if S.sum and rn()and R.Sum and os.clock()-S.lsum>=S.sumD then S.lsum=os.clock()
 pcall(function()R.Sum:InvokeServer(S.sumAmt)end)end end end)
 
 task.spawn(function()while true do task.wait(1)
-if (S.buy or S.opn)and rn()and os.clock()-S.lcr>=S.crateD then
-S.lcr=os.clock()
+if (S.buy or S.opn)and rn()and os.clock()-S.lcr>=S.crateD then S.lcr=os.clock()
 if S.buy and R.Buy then pcall(function()R.Buy:FireServer("Basic",S.crateA)end)end
-if S.opn and R.Open then pcall(function()R.Open:InvokeServer("Basic",S.crateA)end)end
-end end end)
+if S.opn and R.Open then pcall(function()R.Open:InvokeServer("Basic",S.crateA)end)end end end end)
 
 task.spawn(function()while true do task.wait(1)
 if S.lobby and R.EnterEl and R.StartEl then
@@ -181,22 +179,38 @@ else for _,c in ipairs(hideC)do pcall(function()c:Disconnect()end)end hideC={}en
 
 local function send(full)
 if not S.wh or S.url==""or type(request)~="function"then return false end
-local gm,st=0,0 local ls=LP:FindFirstChild("leaderstats")
-if ls then local x=ls:FindFirstChild("Gems")local y=ls:FindFirstChild("Stars")
-if x then gm=tonumber(x.Value)or 0 end if y then st=tonumber(y.Value)or 0 end end
-local f={{name="Cash",value=tostring(cs()),inline=true},{name="Gems",value=tostring(gm),inline=true},
-{name="Stars",value=tostring(st),inline=true},{name="Wave",value=tostring(wv()),inline=true}}
-if full then table.insert(f,{name="Towers",value=tostring(#mn()),inline=true})
-table.insert(f,{name="PlaceId",value=tostring(game.PlaceId),inline=false})end
-return pcall(function()request({Url=S.url,Method="POST",
-Headers={["Content-Type"]="application/json"},
-Body=HS:JSONEncode({username="wertlaider",
-embeds={{title="wertlaider · "..LP.Name,
-description="`"..LP.DisplayName.."` · `"..LP.UserId.."`",
-color=0x3C8CFF,fields=f,footer={text="wertlaider"},
-timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")}})})end)end
+local gm,st=0,0
+local ls=LP:FindFirstChild("leaderstats")
+if ls then
+local x=ls:FindFirstChild("Gems")local y=ls:FindFirstChild("Stars")
+if x then gm=tonumber(x.Value)or 0 end
+if y then st=tonumber(y.Value)or 0 end
+end
+local f={}
+f[#f+1]={name="Cash",value=tostring(cs()),inline=true}
+f[#f+1]={name="Gems",value=tostring(gm),inline=true}
+f[#f+1]={name="Stars",value=tostring(st),inline=true}
+f[#f+1]={name="Wave",value=tostring(wv()),inline=true}
+if full then
+f[#f+1]={name="Towers",value=tostring(#mn()),inline=true}
+f[#f+1]={name="PlaceId",value=tostring(game.PlaceId),inline=false}
+end
+local embed={}
+embed.title="wertlaider · "..LP.Name
+embed.description="`"..LP.DisplayName.."` · `"..LP.UserId.."`"
+embed.color=0x3C8CFF
+embed.fields=f
+embed.footer={text="wertlaider"}
+embed.timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")
+local payload={}
+payload.username="wertlaider"
+payload.embeds={embed}
+return pcall(function()
+request({Url=S.url,Method="POST",Headers={["Content-Type"]="application/json"},Body=HS:JSONEncode(payload)})
+end)
+end
 
--- МАКРОСЫ
+-- MACROS
 local MF="Wertlaider_Macros"
 pcall(function()if not isfolder(MF)then makefolder(MF)end end)
 local Mac={rec=false,play=false,acts={},t0=0,prof="default",meta=setmetatable({},{__mode="k"}),h=0}
@@ -339,6 +353,4 @@ local t=Instance.new("TextLabel",r)t.Size=UDim2.new(1,-80,0,16)
 t.Position=UDim2.new(0,12,0,6)t.BackgroundTransparency=1 t.Text=label
 t.TextColor3=TX t.Font=Enum.Font.Gotham t.TextSize=12
 t.TextXAlignment=Enum.TextXAlignment.Left
-local v=Instance.new("TextLabel",r)v.Size=UDim2.new(0,60,0,16)
-v.Position=UDim2.new(1,-72,0,6)v.BackgroundTransparency=1
-v.Text=tostring(init)..(suf or"")v.TextCo
+local v=Instance.new("TextLabel",r)v.Size=UDim2.new(0,
