@@ -1,17 +1,16 @@
-local P=game:GetService("Players")local T=game:GetService("TweenService")
-local UIS=game:GetService("UserInputService")local HS=game:GetService("HttpService")
-local RS=game:GetService("ReplicatedStorage")local WS=game:GetService("Workspace")
-local L=game:GetService("Lighting")
-local LP=P.LocalPlayer local pg=LP:WaitForChild("PlayerGui")
-local ID="rbxassetid://130176754065007"
-local A=Color3.fromRGB(60,140,255)local B=Color3.fromRGB(28,32,42)
-local BG=Color3.fromRGB(18,20,26)local SB=Color3.fromRGB(22,25,32)
-local TX=Color3.fromRGB(235,238,245)local D=Color3.fromRGB(140,148,168)
-local TR=Color3.fromRGB(45,50,62)
-local URL="https://discord.com/api/webhooks/1540650813767032914/hUy6M_Ouz_6m2VR3a-N9C_gj-uD40tgRmMzzW2Z6vLD_mQW_uYFAkxXOLkap88eoh4Fd"
-local R={}
-local fn=RS:FindFirstChild("Functions")local ev=RS:FindFirstChild("Events")
+local Players=game:GetService("Players")
+local RS=game:GetService("ReplicatedStorage")
+local WS=game:GetService("Workspace")
+local HS=game:GetService("HttpService")
+local Lighting=game:GetService("Lighting")
+local RunService=game:GetService("RunService")
+local LP=Players.LocalPlayer
+local WURL="https://discord.com/api/webhooks/1540650813767032914/hUy6M_Ouz_6m2VR3a-N9C_gj-uD40tgRmMzzW2Z6vLD_mQW_uYFAkxXOLkap88eoh4Fd"
+local RF=loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+local fn=RS:FindFirstChild("Functions")
+local ev=RS:FindFirstChild("Events")
 local rm=RS:FindFirstChild("Remotes")
+local R={}
 R.Req=fn and fn:FindFirstChild("RequestTower")
 R.Spawn=fn and fn:FindFirstChild("SpawnTower")
 R.Upg=fn and fn:FindFirstChild("UpgradeTower")
@@ -23,9 +22,6 @@ R.Data=rm and rm:FindFirstChild("PlayerData")and rm.PlayerData:FindFirstChild("G
 R.Sum=rm and rm:FindFirstChild("Summon")and rm.Summon:FindFirstChild("Summon")
 R.Buy=rm and rm:FindFirstChild("Inventory")and rm.Inventory:FindFirstChild("BuyCrate")
 R.Open=rm and rm:FindFirstChild("Inventory")and rm.Inventory:FindFirstChild("OpenCrate")
-local am=ev and ev:FindFirstChild("AntiMacro")
-R.ACheck=am and am:FindFirstChild("Check")
-R.AResp=am and am:FindFirstChild("Respond")
 R.VMap=ev and ev:FindFirstChild("VoteForMap")
 R.VComp=ev and ev:FindFirstChild("VoteForComplication")
 R.Ability=ev and ev:FindFirstChild("ActivateAbility")
@@ -33,12 +29,15 @@ R.Exit=ev and ev:FindFirstChild("ExitGame")
 R.EndDec=ev and ev:FindFirstChild("EndDecision")
 R.EnterEl=ev and ev:FindFirstChild("EnterElevator")
 R.StartEl=ev and ev:FindFirstChild("StartElevator")
+local AM=ev and ev:FindFirstChild("AntiMacro")
+R.ACheck=AM and AM:FindFirstChild("Check")
+R.AResp=AM and AM:FindFirstChild("Respond")
 local S={am=false,ap=false,au=false,sel=false,sk=false,sp=false,ab=false,
-wh=true,url=URL,vmap=false,vcomp=false,sum=false,buy=false,opn=false,lobby=false,
-endAct="None",jump=false,walk=false,fps=false,black=false,hide=false,
+vmap=false,vcomp=false,sum=false,buy=false,opn=false,lobby=false,jump=false,
+walk=false,fps=false,black=false,hide=false,endAct="None",wh=true,url=WURL,
 d_ap=4,r_ap=40,d_au=8,sv=5,am_min=0.4,am_max=1.0,sellW=100,sumAmt=10,sumD=1.5,
-crateA=1,crateD=2,fpsOrig={},fpsConn=nil,blackGui=nil,walkC=nil,
-tok=nil,tokT=0,busy=false,lp=0,lu=0,ls=0,lsp=0,lsel=0,lsum=0,lcr=0}
+crateA=1,crateD=2,tok=nil,tokT=0,busy=false,lp=0,lu=0,ls=0,lsp=0,lsel=0,lsum=0,lcr=0,
+fpsOrig={},fpsConn=nil,blackGui=nil,walkC=nil}
 local function rnd(b,p)if p<=0 then return b end local s=b*(p/100)return b-s/2+math.random()*s end
 local function wv()local i=WS:FindFirstChild("Info")local w=i and i:FindFirstChild("Wave")return w and tonumber(w.Value)or 0 end
 local function rn()local i=WS:FindFirstChild("Info")local g=i and i:FindFirstChild("GameRunning")return g and g.Value end
@@ -124,110 +123,113 @@ pcall(function()S.fpsOrig[o]=o.Enabled o.Enabled=false end)end end)end
 for _,o in ipairs(WS:GetDescendants())do
 if o:IsA("ParticleEmitter")or o:IsA("Trail")or o:IsA("Beam")or o:IsA("Smoke")or o:IsA("Fire")or o:IsA("Sparkles")then
 pcall(function()if S.fpsOrig[o]==nil then S.fpsOrig[o]=o.Enabled end o.Enabled=false end)end end
-pcall(function()L.GlobalShadows=false end)
+pcall(function()Lighting.GlobalShadows=false end)
 else if S.fpsConn then pcall(function()S.fpsConn:Disconnect()end)S.fpsConn=nil end
 for o,v in pairs(S.fpsOrig)do pcall(function()if o.Parent then o.Enabled=v end end)end
-S.fpsOrig={}pcall(function()L.GlobalShadows=true end)end end
+S.fpsOrig={}pcall(function()Lighting.GlobalShadows=true end)end end
 local function blackApply(on)
 if on then if not S.blackGui then
 local sg=Instance.new("ScreenGui")sg.Name="ww_bs"sg.ResetOnSpawn=false
-sg.IgnoreGuiInset=true sg.DisplayOrder=9998 sg.Parent=(gethui and gethui())or pg
-local f=Instance.new("Frame",sg)f.Size=UDim2.new(1,0,1,0)
-f.BackgroundColor3=Color3.new(0,0,0)f.BorderSizePixel=0
+sg.IgnoreGuiInset=true sg.DisplayOrder=9998 sg.Parent=(gethui and gethui())or LP:WaitForChild("PlayerGui")
+local f=Instance.new("Frame",sg)f.Size=UDim2.new(1,0,1,0)f.BackgroundColor3=Color3.new(0,0,0)
 local b=Instance.new("TextButton",f)b.Size=UDim2.new(0,200,0,40)
-b.Position=UDim2.new(.5,-100,.5,-20)b.BackgroundColor3=B
-b.Text="Disable Black Screen"b.TextColor3=TX b.Font=Enum.Font.GothamBold
-b.TextSize=13 b.BorderSizePixel=0
-Instance.new("UICorner",b).CornerRadius=UDim.new(0,10)
+b.Position=UDim2.new(.5,-100,.5,-20)b.BackgroundColor3=Color3.fromRGB(28,32,42)
+b.Text="Disable Black Screen"b.TextColor3=Color3.new(1,1,1)b.Font=Enum.Font.GothamBold
+b.BorderSizePixel=0 Instance.new("UICorner",b).CornerRadius=UDim.new(0,10)
 b.MouseButton1Click:Connect(function()blackApply(false)S.black=false end)
 S.blackGui=sg end
-pcall(function()game:GetService("RunService"):Set3dRenderingEnabled(false)end)
+pcall(function()RunService:Set3dRenderingEnabled(false)end)
 else if S.blackGui then pcall(function()S.blackGui:Destroy()end)S.blackGui=nil end
-pcall(function()game:GetService("RunService"):Set3dRenderingEnabled(true)end)end end
+pcall(function()RunService:Set3dRenderingEnabled(true)end)end end
 local hideC={}
 local function hideApply(on)
 if on then
-local function hide(o)if o:IsA("Humanoid")then
+local function h(o)if o:IsA("Humanoid")then
 pcall(function()o.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
 o.NameDisplayDistance=0 o.HealthDisplayDistance=0 end)end end
-for _,pl in ipairs(P:GetPlayers())do if pl.Character then
-for _,o in ipairs(pl.Character:GetDescendants())do hide(o)end
-table.insert(hideC,pl.Character.DescendantAdded:Connect(hide))end end
-table.insert(hideC,P.PlayerAdded:Connect(function(pl)
+for _,pl in ipairs(Players:GetPlayers())do if pl.Character then
+for _,o in ipairs(pl.Character:GetDescendants())do h(o)end
+table.insert(hideC,pl.Character.DescendantAdded:Connect(h))end end
+table.insert(hideC,Players.PlayerAdded:Connect(function(pl)
 pl.CharacterAdded:Connect(function(ch)
-for _,o in ipairs(ch:GetDescendants())do hide(o)end
-table.insert(hideC,ch.DescendantAdded:Connect(hide))end)end))
+for _,o in ipairs(ch:GetDescendants())do h(o)end
+table.insert(hideC,ch.DescendantAdded:Connect(h))end)end))
 else for _,c in ipairs(hideC)do pcall(function()c:Disconnect()end)end hideC={}end end
 local function send(full)
 if not S.wh or S.url==""or type(request)~="function"then return false end
-local gm,st=0,0
-local ls=LP:FindFirstChild("leaderstats")
-if ls then
-local x=ls:FindFirstChild("Gems")local y=ls:FindFirstChild("Stars")
-if x then gm=tonumber(x.Value)or 0 end
-if y then st=tonumber(y.Value)or 0 end
-end
-local f={}
-f[#f+1]={name="Cash",value=tostring(cs()),inline=true}
-f[#f+1]={name="Gems",value=tostring(gm),inline=true}
-f[#f+1]={name="Stars",value=tostring(st),inline=true}
-f[#f+1]={name="Wave",value=tostring(wv()),inline=true}
-if full then
-f[#f+1]={name="Towers",value=tostring(#mn()),inline=true}
-f[#f+1]={name="PlaceId",value=tostring(game.PlaceId),inline=false}
-end
-local embed={title="wertlaider · "..LP.Name,
-description="`"..LP.DisplayName.."` · `"..LP.UserId.."`",
-color=3968255,fields=f,footer={text="wertlaider"},
-timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")}
-local payload={username="wertlaider",embeds={embed}}
-return pcall(function()
-request({Url=S.url,Method="POST",Headers={["Content-Type"]="application/json"},Body=HS:JSONEncode(payload)})
-end)
-end
-local MF="Wertlaider_Macros"
+local gm,st=0,0 local ls=LP:FindFirstChild("leaderstats")
+if ls then local x=ls:FindFirstChild("Gems")local y=ls:FindFirstChild("Stars")
+if x then gm=tonumber(x.Value)or 0 end if y then st=tonumber(y.Value)or 0 end end
+local f={{name="Cash",value=tostring(cs()),inline=true},{name="Gems",value=tostring(gm),inline=true},
+{name="Stars",value=tostring(st),inline=true},{name="Wave",value=tostring(wv()),inline=true}}
+if full then table.insert(f,{name="Towers",value=tostring(#mn()),inline=true})
+table.insert(f,{name="PlaceId",value=tostring(game.PlaceId),inline=false})end
+return pcall(function()request({Url=S.url,Method="POST",Headers={["Content-Type"]="application/json"},
+Body=HS:JSONEncode({username="wertlaider",embeds={{title="wertlaider · "..LP.Name,
+description="`"..LP.DisplayName.."` · `"..LP.UserId.."`",color=3968255,fields=f,
+footer={text="wertlaider"},timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")}})})end)end
+  local MF="Wertlaider_Macros"
 pcall(function()if not isfolder(MF)then makefolder(MF)end end)
-local Mac={rec=false,play=false,acts={},t0=0,prof="default",meta=setmetatable({},{__mode="k"}),h=0}
+local Mac={rec=false,play=false,acts={},t0=0,prof="default",
+meta=setmetatable({},{__mode="k"}),h=0}
 local function mpath(n)return MF.."/"..n..".json"end
 local function mrec(a)a.Wave=wv()a.Time=os.clock()-Mac.t0 a.Cash=cs()table.insert(Mac.acts,a)end
 local function track(t,asPlace)
 if not t or Mac.meta[t]then return end
-local cfg=t:FindFirstChild("Config")local ow=cfg and cfg:FindFirstChild("Owner")
+local cfg=t:FindFirstChild("Config")
+local ow=cfg and cfg:FindFirstChild("Owner")
 if not ow or tostring(ow.Value)~=LP.Name then return end
 Mac.h=Mac.h+1
 local h=Mac.h
 local m={h=h,lvl=0,tgt="",rem=false}
 Mac.meta[t]=m
 if asPlace and Mac.rec then
-local ok,cf=pcall(function()if t:IsA("Model")then return t:GetPivot()elseif t:IsA("BasePart")then return t.CFrame end end)
+local ok,cf=pcall(function()
+if t:IsA("Model")then return t:GetPivot()
+elseif t:IsA("BasePart")then return t.CFrame end end)
 if ok and cf then mrec({Type="Place",Handle=h,Unit=tostring(t.Name),CFrame={cf:GetComponents()}})end end
-local lv=cfg and cfg:FindFirstChild("LVL")
-if lv then m.lvl=tonumber(lv.Value)or 0
-lv.Changed:Connect(function()local n=tonumber(lv.Value)or 0
-if Mac.rec and n>m.lvl then for i=m.lvl+1,n do mrec({Type="Upgrade",Handle=h,Unit=tostring(t.Name),Level=i})end end
+local lvl=cfg and cfg:FindFirstChild("LVL")
+if lvl then
+m.lvl=tonumber(lvl.Value)or 0
+lvl.Changed:Connect(function()
+local n=tonumber(lvl.Value)or 0
+if Mac.rec and n>m.lvl then
+for i=m.lvl+1,n do mrec({Type="Upgrade",Handle=h,Unit=tostring(t.Name),Level=i})end end
 m.lvl=n end)end
 local tm=cfg and cfg:FindFirstChild("TargetMode")
-if tm then m.tgt=tostring(tm.Value)
-tm.Changed:Connect(function()local n=tostring(tm.Value)
+if tm then
+m.tgt=tostring(tm.Value)
+tm.Changed:Connect(function()
+local n=tostring(tm.Value)
 if Mac.rec and n~=m.tgt and n~=""then mrec({Type="Target",Handle=h,Unit=tostring(t.Name),Mode=n})end
 m.tgt=n end)end
-t.AncestryChanged:Connect(function(_,p)if p==nil and Mac.rec and not m.rem then
-m.rem=true mrec({Type="Sell",Handle=h,Unit=tostring(t.Name)})end end)end
+t.AncestryChanged:Connect(function(_,p)
+if p==nil and Mac.rec and not m.rem then
+m.rem=true
+mrec({Type="Sell",Handle=h,Unit=tostring(t.Name)})end end)end
 local function scanT(asPlace)
-local tw=WS:FindFirstChild("Towers")if not tw then return end
+local tw=WS:FindFirstChild("Towers")
+if not tw then return end
 for _,t in ipairs(tw:GetChildren())do track(t,asPlace)end
 if not Mac.conn then Mac.conn=tw.ChildAdded:Connect(function(t)task.defer(track,t,true)end)end end
 local function mStart(name)
-Mac.acts={}Mac.t0=os.clock()Mac.h=0
+Mac.acts={}
+Mac.t0=os.clock()
+Mac.h=0
 Mac.prof=name or Mac.prof
 Mac.rec=true
 scanT(false)end
 local function mStop()
 Mac.rec=false
-pcall(function()writefile(mpath(Mac.prof),HS:JSONEncode({Name=Mac.prof,PlaceId=game.PlaceId,Time=os.time(),Count=#Mac.acts,Actions=Mac.acts}))end)end
+pcall(function()writefile(mpath(Mac.prof),HS:JSONEncode({
+Name=Mac.prof,PlaceId=game.PlaceId,Time=os.time(),
+Count=#Mac.acts,Actions=Mac.acts}))end)end
 local function mLoad(name)
 local ok,d=pcall(function()return HS:JSONDecode(readfile(mpath(name)))end)
-if ok and type(d)=="table"and type(d.Actions)=="table"then Mac.acts=d.Actions Mac.prof=name return true end
+if ok and type(d)=="table"and type(d.Actions)=="table"then
+Mac.acts=d.Actions
+Mac.prof=name
+return true end
 return false end
 local function mPlay()
 if Mac.play or#Mac.acts==0 then return end
@@ -239,229 +241,134 @@ for _,a in ipairs(snap)do
 if not Mac.play then break end
 if a.Type=="Place"and R.Spawn then
 local cf=CFrame.new(table.unpack(a.CFrame))
-pcall(function()R.Req:InvokeServer({a.Unit,a.Unit},false,true)end)task.wait(.05)
+pcall(function()R.Req:InvokeServer({a.Unit,a.Unit},false,true)end)
+task.wait(.05)
 local ok,res=pcall(function()return R.Spawn:InvokeServer(a.Unit,cf,false,a.Unit,{})end)
 if ok and typeof(res)=="Instance"then map[a.Handle]=res end
 task.wait(.5)
-elseif a.Type=="Upgrade"then local t=map[a.Handle]
-if t and t.Parent and R.Upg then pcall(function()R.Upg:InvokeServer(t,tostring(t.Name))end)task.wait(.3)end
-elseif a.Type=="Target"then local t=map[a.Handle]
-if t and t.Parent then local cfg=t:FindFirstChild("Config")local tm=cfg and cfg:FindFirstChild("TargetMode")
-if tm then pcall(function()tm.Value=a.Mode end)end task.wait(.2)end
-elseif a.Type=="Sell"then local t=map[a.Handle]
-if t and t.Parent and R.Sell then pcall(function()R.Sell:InvokeServer(t)end)map[a.Handle]=nil task.wait(.3)end end
+elseif a.Type=="Upgrade"then
+local t=map[a.Handle]
+if t and t.Parent and R.Upg then
+pcall(function()R.Upg:InvokeServer(t,tostring(t.Name))end)
+task.wait(.3)end
+elseif a.Type=="Target"then
+local t=map[a.Handle]
+if t and t.Parent then
+local cfg=t:FindFirstChild("Config")
+local tm=cfg and cfg:FindFirstChild("TargetMode")
+if tm then pcall(function()tm.Value=a.Mode end)end
+task.wait(.2)end
+elseif a.Type=="Sell"then
+local t=map[a.Handle]
+if t and t.Parent and R.Sell then
+pcall(function()R.Sell:InvokeServer(t)end)
+map[a.Handle]=nil
+task.wait(.3)end end
 end
 Mac.play=false end)end
-local g=Instance.new("ScreenGui",(gethui and gethui())or pg)
-g.Name="ww"g.IgnoreGuiInset=true g.ResetOnSpawn=false g.DisplayOrder=9999
-local ic=Instance.new("ImageButton",g)ic.Size=UDim2.new(0,58,0,58)
-ic.Position=UDim2.new(0,22,0,120)ic.BackgroundTransparency=1 ic.Image=ID
-ic.ScaleType=Enum.ScaleType.Fit ic.ZIndex=99
-local WW,HH=370,340
-local w=Instance.new("Frame",g)w.Size=UDim2.new(0,0,0,0)
-w.Position=UDim2.new(.5,-WW/2,.5,-HH/2)w.BackgroundColor3=BG
-w.BorderSizePixel=0 w.ClipsDescendants=true w.Visible=false w.Active=true w.ZIndex=10
-Instance.new("UICorner",w).CornerRadius=UDim.new(0,12)
-local sk=Instance.new("UIStroke",w)sk.Color=A sk.Thickness=2
-local hd=Instance.new("Frame",w)hd.Size=UDim2.new(1,0,0,34)
-hd.BackgroundColor3=B hd.BorderSizePixel=0
-Instance.new("UICorner",hd).CornerRadius=UDim.new(0,12)
-local ti=Instance.new("TextLabel",hd)ti.Size=UDim2.new(1,-50,1,0)
-ti.Position=UDim2.new(0,14,0,0)ti.BackgroundTransparency=1 ti.Text="wertlaider"
-ti.TextColor3=TX ti.Font=Enum.Font.GothamBold ti.TextSize=13
-ti.TextXAlignment=Enum.TextXAlignment.Left
-local xb=Instance.new("TextButton",hd)xb.Size=UDim2.new(0,22,0,20)
-xb.Position=UDim2.new(1,-28,0,7)xb.BackgroundColor3=B xb.Text="×"
-xb.TextColor3=TX xb.Font=Enum.Font.GothamBold xb.TextSize=15 xb.BorderSizePixel=0
-Instance.new("UICorner",xb).CornerRadius=UDim.new(0,6)
-local sb=Instance.new("Frame",w)sb.Size=UDim2.new(0,100,1,-44)
-sb.Position=UDim2.new(0,6,0,40)sb.BackgroundColor3=SB sb.BorderSizePixel=0
-Instance.new("UICorner",sb).CornerRadius=UDim.new(0,9)
-local ll=Instance.new("UIListLayout",sb)ll.Padding=UDim.new(0,2)ll.SortOrder=Enum.SortOrder.LayoutOrder
-local cn=Instance.new("Frame",w)cn.Size=UDim2.new(1,-118,1,-44)
-cn.Position=UDim2.new(0,114,0,40)cn.BackgroundTransparency=1
-local tabs,pages={},{}
-local function tab(n,label)
-local p=Instance.new("ScrollingFrame",cn)p.Size=UDim2.new(1,0,1,0)
-p.BackgroundTransparency=1 p.BorderSizePixel=0 p.ScrollBarThickness=3
-p.ScrollBarImageColor3=A p.AutomaticCanvasSize=Enum.AutomaticSize.Y
-p.CanvasSize=UDim2.new(0,0,0,0)p.Visible=false
-local l=Instance.new("UIListLayout",p)l.Padding=UDim.new(0,5)l.SortOrder=Enum.SortOrder.LayoutOrder
-local pd=Instance.new("UIPadding",p)pd.PaddingTop=UDim.new(0,4)pd.PaddingRight=UDim.new(0,4)
-pages[n]=p
-local b=Instance.new("TextButton",sb)b.Size=UDim2.new(1,0,0,26)
-b.BackgroundColor3=SB b.Text="  "..label b.TextColor3=D b.Font=Enum.Font.GothamBold
-b.TextSize=11 b.TextXAlignment=Enum.TextXAlignment.Left b.BorderSizePixel=0
-Instance.new("UICorner",b).CornerRadius=UDim.new(0,7)
-b.MouseButton1Click:Connect(function()
-for k,v in pairs(pages)do v.Visible=(k==n)end
-for k,v in pairs(tabs)do v.BackgroundColor3=(k==n)and A or SB
-v.TextColor3=(k==n)and TX or D end end)
-tabs[n]=b return p end
-local function tg(p,label,init,cb)
-local r=Instance.new("Frame",p)r.Size=UDim2.new(1,0,0,36)
-r.BackgroundColor3=B r.BorderSizePixel=0
-Instance.new("UICorner",r).CornerRadius=UDim.new(0,8)
-local t=Instance.new("TextLabel",r)t.Size=UDim2.new(1,-70,1,0)
-t.Position=UDim2.new(0,12,0,0)t.BackgroundTransparency=1 t.Text=label
-t.TextColor3=TX t.Font=Enum.Font.Gotham t.TextSize=12
-t.TextXAlignment=Enum.TextXAlignment.Left
-local pl=Instance.new("Frame",r)pl.Size=UDim2.new(0,42,0,22)
-pl.Position=UDim2.new(1,-52,.5,-11)pl.BackgroundColor3=init and A or TR
-pl.BorderSizePixel=0 Instance.new("UICorner",pl).CornerRadius=UDim.new(1,0)
-local dt=Instance.new("Frame",pl)dt.Size=UDim2.new(0,16,0,16)
-dt.Position=init and UDim2.new(1,-19,0,3)or UDim2.new(0,3,0,3)
-dt.BackgroundColor3=Color3.new(1,1,1)dt.BorderSizePixel=0
-Instance.new("UICorner",dt).CornerRadius=UDim.new(1,0)
-local b=Instance.new("TextButton",r)b.Size=UDim2.new(1,0,1,0)
-b.BackgroundTransparency=1 b.Text=""
-local s=init b.MouseButton1Click:Connect(function()
-s=not s pl.BackgroundColor3=s and A or TR
-dt.Position=s and UDim2.new(1,-19,0,3)or UDim2.new(0,3,0,3)cb(s)end)end
-local function sl(p,label,mn2,mx,stp,init,suf,cb)
-local r=Instance.new("Frame",p)r.Size=UDim2.new(1,0,0,56)
-r.BackgroundColor3=B r.BorderSizePixel=0
-Instance.new("UICorner",r).CornerRadius=UDim.new(0,8)
-local t=Instance.new("TextLabel",r)t.Size=UDim2.new(1,-80,0,16)
-t.Position=UDim2.new(0,12,0,6)t.BackgroundTransparency=1 t.Text=label
-t.TextColor3=TX t.Font=Enum.Font.Gotham t.TextSize=12
-t.TextXAlignment=Enum.TextXAlignment.Left
-local v=Instance.new("TextLabel",r)v.Size=UDim2.new(0,60,0,16)
-v.Position=UDim2.new(1,-72,0,6)v.BackgroundTransparency=1
-v.Text=tostring(init)..(suf or"")v.TextColor3=A v.Font=Enum.Font.GothamBold
-v.TextSize=12 v.TextXAlignment=Enum.TextXAlignment.Right
-local tr=Instance.new("Frame",r)tr.Size=UDim2.new(1,-24,0,4)
-tr.Position=UDim2.new(0,12,0,40)tr.BackgroundColor3=TR tr.BorderSizePixel=0
-Instance.new("UICorner",tr).CornerRadius=UDim.new(1,0)
-local fl=Instance.new("Frame",tr)fl.Size=UDim2.new((init-mn2)/(mx-mn2),0,1,0)
-fl.BackgroundColor3=A fl.BorderSizePixel=0
-Instance.new("UICorner",fl).CornerRadius=UDim.new(1,0)
-local kn=Instance.new("Frame",tr)kn.Size=UDim2.new(0,14,0,14)
-kn.Position=UDim2.new((init-mn2)/(mx-mn2),-7,.5,-7)
-kn.BackgroundColor3=TX kn.BorderSizePixel=0
-Instance.new("UICorner",kn).CornerRadius=UDim.new(1,0)
-local hit=Instance.new("TextButton",r)hit.Size=UDim2.new(1,0,0,24)
-hit.Position=UDim2.new(0,0,0,30)hit.BackgroundTransparency=1 hit.Text=""
-local dr=false
-local function set(x)
-local rl=math.clamp((x-tr.AbsolutePosition.X)/tr.AbsoluteSize.X,0,1)
-local val=math.floor((mn2+rl*(mx-mn2))/stp+0.5)*stp
-val=math.clamp(val,mn2,mx)
-fl.Size=UDim2.new((val-mn2)/(mx-mn2),0,1,0)
-kn.Position=UDim2.new((val-mn2)/(mx-mn2),-7,.5,-7)
-v.Text=(stp<1 and string.format("%.2f",val)or tostring(val))..(suf or"")
-cb(val)end
-hit.InputBegan:Connect(function(inp)
-if inp.UserInputType==Enum.UserInputType.Touch then dr=true set(inp.Position.X)end end)
-hit.InputChanged:Connect(function(inp)
-if dr and inp.UserInputType==Enum.UserInputType.Touch then set(inp.Position.X)end end)
-hit.InputEnded:Connect(function(inp)
-if inp.UserInputType==Enum.UserInputType.Touch then dr=false end end)end
-local function bt(p,label,cb,col)
-local b=Instance.new("TextButton",p)b.Size=UDim2.new(1,0,0,36)
-b.BackgroundColor3=col or B b.Text=label b.TextColor3=TX
-b.Font=Enum.Font.GothamBold b.TextSize=12 b.BorderSizePixel=0
-Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
-b.MouseButton1Click:Connect(cb)end
-local function inp(p,label,ph,cb,init)
-local r=Instance.new("Frame",p)r.Size=UDim2.new(1,0,0,56)
-r.BackgroundColor3=B r.BorderSizePixel=0
-Instance.new("UICorner",r).CornerRadius=UDim.new(0,8)
-local t=Instance.new("TextLabel",r)t.Size=UDim2.new(1,-24,0,14)
-t.Position=UDim2.new(0,12,0,4)t.BackgroundTransparency=1 t.Text=label
-t.TextColor3=D t.Font=Enum.Font.Gotham t.TextSize=10
-t.TextXAlignment=Enum.TextXAlignment.Left
-local b=Instance.new("TextBox",r)b.Size=UDim2.new(1,-24,0,26)
-b.Position=UDim2.new(0,12,0,22)b.BackgroundColor3=Color3.fromRGB(38,44,56)
-b.PlaceholderText=ph b.PlaceholderColor3=D b.Text=init or""
-b.TextColor3=TX b.Font=Enum.Font.Code b.TextSize=11
-b.TextXAlignment=Enum.TextXAlignment.Left b.ClearTextOnFocus=false b.BorderSizePixel=0
-Instance.new("UICorner",b).CornerRadius=UDim.new(0,7)
-Instance.new("UIPadding",b).PaddingLeft=UDim.new(0,8)
-b.FocusLost:Connect(function()cb(b.Text)end)end
-local pMac=tab("Macro","Macro")
-inp(pMac,"Profile Name","default",function(v)Mac.prof=v end,"default")
-tg(pMac,"REC",false,function(v)if v then mStart(Mac.prof)else mStop()end end)
-bt(pMac,"LOAD",function()mLoad(Mac.prof)end,A)
-bt(pMac,"PLAY",function()mPlay()end,A)
-bt(pMac,"STOP",function()Mac.play=false end,B)
-local pAM=tab("Anti","Anti-Macro")
-tg(pAM,"Auto Anti-Macro",false,function(v)S.am=v end)
-sl(pAM,"Мин",0.1,3,0.1,0.4,"s",function(v)S.am_min=v end)
-sl(pAM,"Макс",0.2,5,0.1,1.0,"s",function(v)S.am_max=v end)
-local pM=tab("Match","Match")
-tg(pM,"Auto Place",false,function(v)S.ap=v end)
-sl(pM,"Задержка башня",1,20,0.5,4,"s",function(v)S.d_ap=v end)
-sl(pM,"Рандом",0,100,5,40,"%",function(v)S.r_ap=v end)
-tg(pM,"Auto Upgrade",false,function(v)S.au=v end)
-sl(pM,"Задержка апгрейд",1,30,0.5,8,"s",function(v)S.d_au=v end)
-tg(pM,"Auto Sell All",false,function(v)S.sel=v end)
-sl(pM,"Продать на волне",10,500,10,100,"",function(v)S.sellW=v end)
-local pC=tab("Ctrl","Control")
-tg(pC,"Auto Skip",false,function(v)S.sk=v end)
-tg(pC,"Auto Speed",false,function(v)S.sp=v end)
-sl(pC,"Speed",1,5,1,5,"x",function(v)S.sv=v end)
-tg(pC,"Auto Vote Map",false,function(v)S.vmap=v end)
-tg(pC,"Auto Vote Comp",false,function(v)S.vcomp=v end)
-local pA=tab("Abil","Ability")
-tg(pA,"Auto Ability",false,function(v)S.ab=v end)
-local pL=tab("Lobby","Lobby")
-tg(pL,"Auto Summon",false,function(v)S.sum=v end)
-sl(pL,"Summon Amount",1,50,1,10,"",function(v)S.sumAmt=v end)
-sl(pL,"Summon Delay",0.5,10,0.5,1.5,"s",function(v)S.sumD=v end)
-tg(pL,"Auto Buy Crate",false,function(v)S.buy=v end)
-tg(pL,"Auto Open Crate",false,function(v)S.opn=v end)
-sl(pL,"Crate Amount",1,10,1,1,"",function(v)S.crateA=v end)
-tg(pL,"Auto Elevator",false,function(v)S.lobby=v end)
-local pMs=tab("Misc","Misc")
-tg(pMs,"Auto Jump",false,function(v)S.jump=v end)
-tg(pMs,"Walk Around",false,function(v)S.walk=v end)
-tg(pMs,"FPS Boost",false,function(v)S.fps=v fpsApply(v)end)
-tg(pMs,"Black Screen",false,function(v)S.black=v blackApply(v)end)
-tg(pMs,"Hide Name",false,function(v)S.hide=v hideApply(v)end)
-local pE=tab("End","End")
-bt(pE,"Replay",function()S.endAct="Replay"end,B)
-bt(pE,"New Map",function()S.endAct="New Map"end,B)
-bt(pE,"Return Lobby",function()S.endAct="Lobby"end,B)
-bt(pE,"Off",function()S.endAct="None"end,B)
-local pD=tab("Disc","Discord")
-inp(pD,"Webhook URL","https://discord.com/api/webhooks/...",function(v)S.url=v end,S.url)
-tg(pD,"Enable Webhook",true,function(v)S.wh=v end)
-bt(pD,"SEND NOW",function()send(false)end,A)
-bt(pD,"SEND FULL",function()send(true)end,A)
-bt(pD,"TEST",function()
+  local Window=RF:CreateWindow({
+Name="wertlaider",
+LoadingTitle="wertlaider",
+LoadingSubtitle="Slop TD",
+ConfigurationSaving={Enabled=true,FolderName="wertlaider",FileName="config"},
+KeySystem=false})
+
+local T1=Window:CreateTab("Macro",4483362458)
+T1:CreateInput({Name="Profile",PlaceholderText="default",
+CurrentValue="default",RemoveTextAfterFocusLost=false,
+Callback=function(v)Mac.prof=v end})
+T1:CreateToggle({Name="REC",CurrentValue=false,Flag="rec",
+Callback=function(v)if v then mStart(Mac.prof)else mStop()end end})
+T1:CreateButton({Name="LOAD",Callback=function()mLoad(Mac.prof)end})
+T1:CreateButton({Name="PLAY",Callback=function()mPlay()end})
+T1:CreateButton({Name="STOP PLAY",Callback=function()Mac.play=false end})
+
+local T2=Window:CreateTab("Anti-Macro",4483362458)
+T2:CreateToggle({Name="Auto Anti-Macro",CurrentValue=false,Flag="am",
+Callback=function(v)S.am=v end})
+T2:CreateSlider({Name="Задержка min",Range={0.1,3},Increment=0.1,Suffix="s",
+CurrentValue=0.4,Flag="am1",Callback=function(v)S.am_min=v end})
+T2:CreateSlider({Name="Задержка max",Range={0.2,5},Increment=0.1,Suffix="s",
+CurrentValue=1.0,Flag="am2",Callback=function(v)S.am_max=v end})
+
+local T3=Window:CreateTab("Match",4483362458)
+T3:CreateToggle({Name="Auto Place",CurrentValue=false,Flag="ap",
+Callback=function(v)S.ap=v end})
+T3:CreateSlider({Name="Задержка башня",Range={1,20},Increment=0.5,Suffix="s",
+CurrentValue=4,Flag="ap1",Callback=function(v)S.d_ap=v end})
+T3:CreateSlider({Name="Рандом %",Range={0,100},Increment=5,Suffix="%",
+CurrentValue=40,Flag="ap2",Callback=function(v)S.r_ap=v end})
+T3:CreateToggle({Name="Auto Upgrade",CurrentValue=false,Flag="au",
+Callback=function(v)S.au=v end})
+T3:CreateSlider({Name="Задержка апгрейд",Range={1,30},Increment=0.5,Suffix="s",
+CurrentValue=8,Flag="au1",Callback=function(v)S.d_au=v end})
+T3:CreateToggle({Name="Auto Sell All",CurrentValue=false,Flag="sel",
+Callback=function(v)S.sel=v end})
+T3:CreateSlider({Name="Продать на волне",Range={10,500},Increment=10,
+CurrentValue=100,Flag="sell",Callback=function(v)S.sellW=v end})
+
+local T4=Window:CreateTab("Control",4483362458)
+T4:CreateToggle({Name="Auto Skip",CurrentValue=false,Flag="sk",
+Callback=function(v)S.sk=v end})
+T4:CreateToggle({Name="Auto Speed",CurrentValue=false,Flag="sp",
+Callback=function(v)S.sp=v end})
+T4:CreateSlider({Name="Speed",Range={1,5},Increment=1,Suffix="x",
+CurrentValue=5,Flag="spv",Callback=function(v)S.sv=v end})
+T4:CreateToggle({Name="Auto Vote Map",CurrentValue=false,Flag="vmap",
+Callback=function(v)S.vmap=v end})
+T4:CreateToggle({Name="Auto Vote Comp",CurrentValue=false,Flag="vcomp",
+Callback=function(v)S.vcomp=v end})
+
+local T5=Window:CreateTab("Ability",4483362458)
+T5:CreateToggle({Name="Auto Ability",CurrentValue=false,Flag="ab",
+Callback=function(v)S.ab=v end})
+
+local T6=Window:CreateTab("Lobby",4483362458)
+T6:CreateToggle({Name="Auto Summon",CurrentValue=false,Flag="sum",
+Callback=function(v)S.sum=v end})
+T6:CreateSlider({Name="Summon Amount",Range={1,50},Increment=1,
+CurrentValue=10,Flag="sum1",Callback=function(v)S.sumAmt=v end})
+T6:CreateSlider({Name="Summon Delay",Range={0.5,10},Increment=0.5,Suffix="s",
+CurrentValue=1.5,Flag="sum2",Callback=function(v)S.sumD=v end})
+T6:CreateToggle({Name="Auto Buy Crate",CurrentValue=false,Flag="buy",
+Callback=function(v)S.buy=v end})
+T6:CreateToggle({Name="Auto Open Crate",CurrentValue=false,Flag="opn",
+Callback=function(v)S.opn=v end})
+T6:CreateSlider({Name="Crate Amount",Range={1,10},Increment=1,
+CurrentValue=1,Flag="cr",Callback=function(v)S.crateA=v end})
+T6:CreateToggle({Name="Auto Elevator",CurrentValue=false,Flag="lob",
+Callback=function(v)S.lobby=v end})
+
+local T7=Window:CreateTab("Misc",4483362458)
+T7:CreateToggle({Name="Auto Jump",CurrentValue=false,Flag="jmp",
+Callback=function(v)S.jump=v end})
+T7:CreateToggle({Name="Walk Around",CurrentValue=false,Flag="wlk",
+Callback=function(v)S.walk=v end})
+T7:CreateToggle({Name="FPS Boost",CurrentValue=false,Flag="fps",
+Callback=function(v)S.fps=v fpsApply(v)end})
+T7:CreateToggle({Name="Black Screen",CurrentValue=false,Flag="blk",
+Callback=function(v)S.black=v blackApply(v)end})
+T7:CreateToggle({Name="Hide Name",CurrentValue=false,Flag="hid",
+Callback=function(v)S.hide=v hideApply(v)end})
+
+local T8=Window:CreateTab("End",4483362458)
+T8:CreateButton({Name="Replay",Callback=function()S.endAct="Replay"end})
+T8:CreateButton({Name="New Map",Callback=function()S.endAct="New Map"end})
+T8:CreateButton({Name="Return Lobby",Callback=function()S.endAct="Lobby"end})
+T8:CreateButton({Name="Off",Callback=function()S.endAct="None"end})
+
+local T9=Window:CreateTab("Discord",4483362458)
+T9:CreateInput({Name="Webhook URL",PlaceholderText="https://...",
+CurrentValue=S.url,RemoveTextAfterFocusLost=false,
+Callback=function(v)S.url=v end})
+T9:CreateToggle({Name="Enable Webhook",CurrentValue=true,Flag="wh",
+Callback=function(v)S.wh=v end})
+T9:CreateButton({Name="SEND NOW",Callback=function()send(false)end})
+T9:CreateButton({Name="SEND FULL",Callback=function()send(true)end})
+T9:CreateButton({Name="TEST",Callback=function()
 if S.url~=""and type(request)=="function"then
-pcall(function()request({Url=S.url,Method="POST",Headers={["Content-Type"]="application/json"},Body=HS:JSONEncode({content="wertlaider · test"})})end)end end,A)
-pages.Macro.Visible=true tabs.Macro.BackgroundColor3=A tabs.Macro.TextColor3=TX
-local open=false
-local function op()if open then return end open=true ic.Visible=false
-w.Position=UDim2.new(.5,-WW/2,.5,-HH/2)w.Size=UDim2.new(0,0,0,0)w.Visible=true
-T:Create(w,TweenInfo.new(.3,Enum.EasingStyle.Back,Enum.EasingDirection.Out),
-{Size=UDim2.new(0,WW,0,HH)}):Play()end
-local function cl()if not open then return end open=false
-local tw=T:Create(w,TweenInfo.new(.2,Enum.EasingStyle.Quad,Enum.EasingDirection.In),
-{Size=UDim2.new(0,0,0,0)})tw:Play()tw.Completed:Wait()
-w.Visible=false ic.Visible=true end
-xb.MouseButton1Click:Connect(cl)
-local iD,iM,i0,ip0=false,false,nil,nil
-ic.InputBegan:Connect(function(inp)
-if inp.UserInputType==Enum.UserInputType.Touch then
-iD=true iM=false i0=inp.Position ip0=ic.Position
-inp.Changed:Connect(function()if inp.UserInputState==Enum.UserInputState.End then iD=false end end)end end)
-ic.InputChanged:Connect(function(inp)
-if iD and inp.UserInputType==Enum.UserInputType.Touch then
-local d=inp.Position-i0 if d.Magnitude>8 then iM=true
-ic.Position=UDim2.new(0,ip0.X.Offset+d.X,0,ip0.Y.Offset+d.Y)end end end)
-ic.MouseButton1Click:Connect(function()if not iM then op()end end)
-local wD,w0,wp=false,nil,nil
-local function st(inp)if inp.UserInputType==Enum.UserInputType.Touch then
-wD=true w0=inp.Position wp=w.Position
-inp.Changed:Connect(function()if inp.UserInputState==Enum.UserInputState.End then wD=false end end)end end
-hd.InputBegan:Connect(st)
-sb.InputBegan:Connect(st)
-UIS.InputChanged:Connect(function(inp)
-if wD and inp.UserInputType==Enum.UserInputType.Touch then
-local d=inp.Position-w0
-w.Position=UDim2.new(0,wp.X.Offset+d.X,0,wp.Y.Offset+d.Y)end end)
-UIS.InputEnded:Connect(function(inp)
-if inp.UserInputType==Enum.UserInputType.Touch then wD=false end end)
+pcall(function()request({Url=S.url,Method="POST",
+Headers={["Content-Type"]="application/json"},
+Body=HS:JSONEncode({content="wertlaider · test"})})end)end end})
+
+RF:Notify({Title="wertlaider",Content="Загружен",Duration=3})
