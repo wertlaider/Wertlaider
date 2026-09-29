@@ -155,20 +155,45 @@ pl.CharacterAdded:Connect(function(ch)
 for _,o in ipairs(ch:GetDescendants())do h(o)end
 table.insert(hideC,ch.DescendantAdded:Connect(h))end)end))
 else for _,c in ipairs(hideC)do pcall(function()c:Disconnect()end)end hideC={}end end
+
 local function send(full)
-if not S.wh or S.url==""or type(request)~="function"then return false end
-local gm,st=0,0 local ls=LP:FindFirstChild("leaderstats")
-if ls then local x=ls:FindFirstChild("Gems")local y=ls:FindFirstChild("Stars")
-if x then gm=tonumber(x.Value)or 0 end if y then st=tonumber(y.Value)or 0 end end
-local f={{name="Cash",value=tostring(cs()),inline=true},{name="Gems",value=tostring(gm),inline=true},
-{name="Stars",value=tostring(st),inline=true},{name="Wave",value=tostring(wv()),inline=true}}
-if full then table.insert(f,{name="Towers",value=tostring(#mn()),inline=true})
-table.insert(f,{name="PlaceId",value=tostring(game.PlaceId),inline=false})end
-return pcall(function()request({Url=S.url,Method="POST",Headers={["Content-Type"]="application/json"},
-Body=HS:JSONEncode({username="wertlaider",embeds={{title="wertlaider · "..LP.Name,
-description="`"..LP.DisplayName.."` · `"..LP.UserId.."`",color=3968255,fields=f,
-footer={text="wertlaider"},timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")}})})end)end
-  local MF="Wertlaider_Macros"
+    if not S.wh or S.url == "" or type(request) ~= "function" then return false end
+    local gm, st = 0, 0
+    local ls = LP:FindFirstChild("leaderstats")
+    if ls then
+        local x = ls:FindFirstChild("Gems")
+        local y = ls:FindFirstChild("Stars")
+        if x then gm = tonumber(x.Value) or 0 end
+        if y then st = tonumber(y.Value) or 0 end
+    end
+    local f = {
+        { name = "Cash", value = tostring(cs()), inline = true },
+        { name = "Gems", value = tostring(gm), inline = true },
+        { name = "Stars", value = tostring(st), inline = true },
+        { name = "Wave", value = tostring(wv()), inline = true }
+    }
+    if full then
+        table.insert(f, { name = "Towers", value = tostring(#mn()), inline = true })
+        table.insert(f, { name = "PlaceId", value = tostring(game.PlaceId), inline = false })
+    end
+    local embed = {
+        title = "wertlaider · " .. LP.Name,
+        description = "`" .. LP.DisplayName .. "` · `" .. LP.UserId .. "`",
+        color = 3968255,
+        fields = f,
+        footer = { text = "wertlaider" },
+        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+    }
+    local payload = { username = "wertlaider", embeds = { embed } }
+    return pcall(function()
+        request({
+            Url = S.url,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HS:JSONEncode(payload)
+        })
+    end)
+end local MF="Wertlaider_Macros"
 pcall(function()if not isfolder(MF)then makefolder(MF)end end)
 local Mac={rec=false,play=false,acts={},t0=0,prof="default",
 meta=setmetatable({},{__mode="k"}),h=0}
