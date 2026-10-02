@@ -1,21 +1,10 @@
 -- ══════════════════════════════════════════════════════════════════
--- wertlaider 0.8.2 — Logger · UI · Core · Remotes · Tracer · Confirm
+-- wertlaider 0.9.0 — clean build (no disk logs, no leak)
+-- Часть 1/6: Logger-stub · UI-load · Core · Remotes · Confirm
 -- ══════════════════════════════════════════════════════════════════
 
-local LOG = "wl_runtime.log"
-pcall(writefile, LOG, "")
-local function Log(tag, ...)
-    local parts = {}
-    for _, v in ipairs({...}) do parts[#parts+1] = tostring(v) end
-    local line = ("[%s][%s] %s\n"):format(os.date("%H:%M:%S"), tostring(tag), table.concat(parts, " "))
-    pcall(function()
-        if type(appendfile) == "function" then appendfile(LOG, line)
-        else writefile(LOG, (readfile(LOG) or "") .. line) end
-    end)
-end
-local function Stage(name) Log("stage", name) end
-Log("boot", "start · executor:", identifyexecutor and identifyexecutor() or "?")
-Log("boot", "placeId:", tostring(game.PlaceId))
+local function Log(tag, ...) end
+local function Stage(name) end
 
 Stage("part1/1-ui-load")
 local RF, UI_err
@@ -34,8 +23,7 @@ do
         end
     end
 end
-if not RF then Log("fatal", "WindUI не загрузился:", UI_err); return end
-Log("ui", "WindUI ok, version:", tostring(RF.Version or "?"))
+if not RF then return end
 
 Stage("part1/2-core")
 local P  = game:GetService("Players")
@@ -82,110 +70,10 @@ local GetCD = fn and fn:FindFirstChild("GetAbilityCooldown")
 Stage("part1/3.5-tracer")
 local TRACE_DIR  = "wl_traces"
 local TRACE_FILE = TRACE_DIR .. "/traces.log"
-if type(isfolder) == "function" and type(makefolder) == "function" then
-    if not isfolder(TRACE_DIR) then pcall(makefolder, TRACE_DIR) end
-end
-
-local function traceLog(tag, ...)
-    local parts = {}
-    for _, v in ipairs({...}) do parts[#parts+1] = tostring(v) end
-    local line = ("[%s][%s] %s\n"):format(os.date("%H:%M:%S"), tostring(tag), table.concat(parts, " "))
-    pcall(function()
-        if type(appendfile) == "function" then appendfile(TRACE_FILE, line)
-        else writefile(TRACE_FILE, (readfile(TRACE_FILE) or "") .. line) end
-    end)
-    Log("trace:" .. tostring(tag), ...)
-end
-
-local function fmtVal(v, d)
-    d = d or 0
-    if d > 2 then return "..." end
-    local tp = type(v)
-    if tp == "string" then return '"' .. v:sub(1, 40) .. '"' end
-    if tp == "number" or tp == "boolean" or tp == "nil" then return tostring(v) end
-    if tp == "userdata" then
-        local okn, n = pcall(function() return v.Name end)
-        if okn and n then return "<" .. tostring(n) .. ">" end
-        return "<userdata>"
-    end
-    if tp == "table" then
-        local n = 0
-        for _ in pairs(v) do n = n + 1; if n > 5 then break end end
-        local bits = {}
-        for i = 1, math.min(4, #v) do bits[#bits+1] = fmtVal(v[i], d + 1) end
-        return "{" .. table.concat(bits, ",") .. (n > 4 and ",..." or "") .. "}"
-    end
-    if tp == "Vector3" then return ("V3(%.1f,%.1f,%.1f)"):format(v.X, v.Y, v.Z) end
-    if tp == "CFrame" then
-        local p = v.Position
-        return ("CF(%.1f,%.1f,%.1f)"):format(p.X, p.Y, p.Z)
-    end
-    return "<" .. tp .. ">"
-end
-
-local function fmtArgs(...)
-    local args = {...}
-    local bits = {}
-    for i = 1, math.min(#args, 5) do bits[#bits+1] = fmtVal(args[i]) end
-    if #args > 5 then bits[#bits+1] = "..." end
-    return table.concat(bits, ", ")
-end
-
-local function wrapRemote(name, obj)
-    if not obj then return nil end
-    local isFunc = false
-    local isEvent = false
-    pcall(function() isFunc = obj:IsA("RemoteFunction") end)
-    pcall(function() isEvent = obj:IsA("RemoteEvent") end)
-    if not (isFunc or isEvent) then return obj end
-    local proxy = {}
-    if isFunc then
-        function proxy.InvokeServer(_, ...)
-            local t0 = os.clock()
-            local a = fmtArgs(...)
-            local ok, res = pcall(function(...) return obj:InvokeServer(...) end, ...)
-            local dt = (os.clock() - t0) * 1000
-            if not ok then
-                traceLog("invoke-fail", name, a, "→", tostring(res))
-                error(res)
-            end
-            traceLog("invoke", name, a, "→", fmtVal(res), string.format("(%.0fms)", dt))
-            return res
-        end
-    end
-    if isEvent then
-        function proxy.FireServer(_, ...)
-            traceLog("fire", name, fmtArgs(...))
-            return obj:FireServer(...)
-        end
-    end
-    return proxy
-end
+local function traceLog(tag, ...) end
+local function wrapRemote(name, obj) return obj end
 
 local _R_orig = R
-R = {}
-local wrappedCount = 0
-for k, v in pairs(_R_orig) do
-    if v ~= nil and type(v) == "userdata" then
-        local ok = pcall(function() return v:IsA("RemoteEvent") or v:IsA("RemoteFunction") end)
-        if ok then
-            R[k] = wrapRemote(k, v)
-            wrappedCount = wrappedCount + 1
-        else
-            R[k] = v
-        end
-    else
-        R[k] = v
-    end
-end
-
-traceLog("session", "═══════════════════════════════════")
-traceLog("session", "=== NEW HUB LOAD ===")
-traceLog("session", "time:", os.date("%Y-%m-%d %H:%M:%S"))
-traceLog("session", "executor:", identifyexecutor and identifyexecutor() or "?")
-traceLog("session", "player:", tostring(LP and LP.Name or "?"))
-traceLog("session", "placeId:", tostring(game.PlaceId))
-traceLog("session", "wrapped remote count:", tostring(wrappedCount))
 
 Stage("part1/3.6-confirm")
 local Confirm = {
@@ -193,56 +81,26 @@ local Confirm = {
     elevEnterAt=0, elevEnterOK=false, elevStartAt=0, elevStartOK=false,
     teleportedAt=0,
 }
-
 local function safeConnect(inst, handler, tag)
     if not inst then return end
-    pcall(function()
-        inst.OnClientEvent:Connect(handler)
-        traceLog("confirm", "подключён " .. tostring(tag))
-    end)
+    pcall(function() inst.OnClientEvent:Connect(handler) end)
 end
 
 safeConnect(ev and ev:FindFirstChild("UpdateVoteCount"), function(...)
-    if os.clock() - Confirm.mapVoteAt < 3 then
-        Confirm.mapVoteOK = true
-        traceLog("confirm", "UpdateVoteCount (map)")
-    end
+    if os.clock() - Confirm.mapVoteAt < 3 then Confirm.mapVoteOK = true end
 end, "UpdateVoteCount")
 
 safeConnect(ev and ev:FindFirstChild("UpdateComplicationVoteCount"), function(...)
-    if os.clock() - Confirm.compVoteAt < 3 then
-        Confirm.compVoteOK = true
-        traceLog("confirm", "UpdateComplicationVoteCount (comp)")
-    end
+    if os.clock() - Confirm.compVoteAt < 3 then Confirm.compVoteOK = true end
 end, "UpdateComplicationVoteCount")
 
 safeConnect(ev and ev:FindFirstChild("ElevatorEntered"), function(...)
-    if os.clock() - Confirm.elevEnterAt < 8 then
-        Confirm.elevEnterOK = true
-        traceLog("confirm", "ElevatorEntered")
-    end
+    if os.clock() - Confirm.elevEnterAt < 8 then Confirm.elevEnterOK = true end
 end, "ElevatorEntered")
 
 safeConnect(ev and ev:FindFirstChild("OnTeleported"), function(...)
     Confirm.teleportedAt = os.clock()
-    traceLog("confirm", "OnTeleported")
 end, "OnTeleported")
-
-if _R_orig.AC then
-    pcall(function()
-        _R_orig.AC.OnClientEvent:Connect(function(...)
-            traceLog("AM-token", fmtArgs(...))
-        end)
-    end)
-end
-
-pcall(function()
-    LP.OnTeleport:Connect(function(state) traceLog("teleport", tostring(state)) end)
-end)
-
-pcall(function()
-    LP.CharacterAdded:Connect(function(ch) traceLog("char", "new character: " .. tostring(ch.Name)) end)
-end)
 
 -- PART 1 END
 Stage("part1/3.7-watchdog")
@@ -262,12 +120,10 @@ function Watchdog.spawn(name)
     task.spawn(function()
         while _G.__WL and _G.__WL.S and _G.__WL.S.Running do
             local ok, err = pcall(L2.fn)
-            if not ok then traceLog("wd", "loop " .. name .. " упал: " .. tostring(err)) end
             L2.alive = false
             task.wait(2)
             if not (_G.__WL and _G.__WL.S and _G.__WL.S.Running) then break end
             L2.alive = true
-            traceLog("wd", "loop " .. name .. " перезапущен")
         end
         L2.alive = false
     end)
@@ -324,7 +180,8 @@ local S = {
     wh=true, url=loadUrl(),
     tok=nil, tokT=0, busy=false,
     lp=0, lu=0, ls=0, lsp=0, lsel=0, lsum=0, lcr=0,
-    fpsO={}, fpsC=nil, bsGui=nil, walkC=nil, abCd={},
+    fpsO=setmetatable({},{__mode="k"}), fpsC=nil, bsGui=nil, walkC=nil,
+    abCd=setmetatable({},{__mode="k"}),
     elevType="Auto",
     macroName="", macroRec=false, macroPlay=false,
     macroActions={}, macroT0=0, macroSpeed=1, macroPlaceId=nil,
@@ -365,15 +222,21 @@ local function ivc()
     local v = i and i:FindFirstChild("ComplicationVoting")
     return v and v.Value
 end
+
+local mnCacheList, mnCacheAt = {}, 0
 local function mn()
+    local now = os.clock()
+    if now - mnCacheAt < 0.5 then return mnCacheList end
+    mnCacheAt = now
     local o = {}
     local t = WS:FindFirstChild("Towers")
-    if not t then return o end
+    if not t then mnCacheList = o; return o end
     for _, v in ipairs(t:GetChildren()) do
         local c = v:FindFirstChild("Config")
         local ow = c and c:FindFirstChild("Owner")
         if ow and tostring(ow.Value) == LP.Name then table.insert(o, v) end
     end
+    mnCacheList = o
     return o
 end
 local function lv(t)
@@ -460,21 +323,14 @@ task.spawn(function()
             local w = info:FindFirstChild("Wave")
             local rv = r and r.Value
             local wvv = w and tonumber(w.Value) or 0
-            if rv and not lastR then
-                traceLog("match", "═══ NEW MATCH ═══")
-                traceLog("match", "placeId:", tostring(game.PlaceId))
-            elseif not rv and lastR then
-                traceLog("match", "═══ MATCH ENDED ═══")
-            end
-            if wvv ~= lastW then traceLog("state", "Wave:", wvv); lastW = wvv end
+            if wvv ~= lastW then lastW = wvv end
             lastR = rv
         end
     end)
 end)
 
 task.spawn(function()
-    local ok, err = pcall(initTracker)
-    if not ok then traceLog("err:tracker-init", tostring(err)) end
+    local ok = pcall(initTracker)
 end)
 
 _G.__WL = {
@@ -485,14 +341,16 @@ _G.__WL = {
     saveCfg=saveCfg, loadCfg=loadCfg, loadUrl=loadUrl,
     rnd=rnd, wv=wv, rn=rn, sd=sd, ivm=ivm, ivc=ivc, mn=mn, lv=lv,
     readVal=readVal, uu=uu, getMaterials=getMaterials, initTracker=initTracker,
-    wrapRemote=wrapRemote, fmtVal=fmtVal, fmtArgs=fmtArgs,
+    wrapRemote=wrapRemote,
     _R_orig=_R_orig, DEF_URL=DEF_URL, SAVE_FILE=SAVE_FILE, SAVE_KEYS=SAVE_KEYS,
     TRACE_DIR=TRACE_DIR, TRACE_FILE=TRACE_FILE,
 }
-traceLog("session", "=== part1 ready ===")
-Log("stage", "part1-done")
 
 -- PART 2 END
+-- ══════════════════════════════════════════════════════════════════
+-- Часть 3/6 — AntiMacro · Macros (start/record/attach)
+-- ══════════════════════════════════════════════════════════════════
+
 local G = _G.__WL
 if not G then error("part1 не запущена") end
 local P, RS, WS, HS, L, R2, LP = G.P, G.RS, G.WS, G.HS, G.L, G.R2, G.LP
@@ -503,7 +361,7 @@ local saveCfg, loadCfg, loadUrl = G.saveCfg, G.loadCfg, G.loadUrl
 local rnd, wv, rn, sd, ivm, ivc = G.rnd, G.wv, G.rn, G.sd, G.ivm, G.ivc
 local mn, lv, readVal, uu = G.mn, G.lv, G.readVal, G.uu
 local getMaterials, initTracker = G.getMaterials, G.initTracker
-local wrapRemote, fmtVal, fmtArgs = G.wrapRemote, G.fmtVal, G.fmtArgs
+local wrapRemote = G.wrapRemote
 local _R_orig = G._R_orig
 local DEF_URL, SAVE_FILE, SAVE_KEYS = G.DEF_URL, G.SAVE_FILE, G.SAVE_KEYS
 local TRACE_DIR, TRACE_FILE = G.TRACE_DIR, G.TRACE_FILE
@@ -512,16 +370,10 @@ Stage("part2/8-antimacro")
 local function findAntiBtn()
     local pg = LP:FindFirstChildOfClass("PlayerGui")
     local root = pg and pg:FindFirstChild("AntiMacroCheck")
-    if not root then return nil end
+    if not root or not root.Enabled then return nil end
     local frame = root:FindFirstChild("Frame")
     local btn = frame and frame:FindFirstChild("TextButton")
     if btn and btn:IsA("GuiButton") then return btn end
-    for _, d in ipairs(root:GetDescendants()) do
-        if d:IsA("GuiButton") then
-            local n = tostring(d.Name):lower()
-            if n:find("button") or n:find("here") then return d end
-        end
-    end
     for _, d in ipairs(root:GetDescendants()) do
         if d:IsA("GuiButton") then
             local t = tostring(d.Text):lower():gsub("[^%a]", "")
@@ -583,22 +435,20 @@ local function bindCheck()
     end
     R.AC = newAC
     R.AR = AM2 and AM2:FindFirstChild("Respond")
-    if R.AR then R.AR = wrapRemote("Respond", R.AR) end
     lastCheckRemote = newAC
     if newAC then
         newAC.OnClientEvent:Connect(function(...)
             local u = uu(table.pack(...))
             if u then S.tok = u; S.tokT = os.clock() end
         end)
-        traceLog("AM", "listener переподключён")
     end
 end
 
 Watchdog.register("antimacro", function()
     while S.Running do
-        task.wait(0.2)
+        task.wait(0.25)
         Watchdog.beat("antimacro")
-        local ok, err = pcall(function()
+        local ok = pcall(function()
             bindCheck()
             if not S.am or S.busy then return end
             local tok = S.tok
@@ -609,20 +459,19 @@ Watchdog.register("antimacro", function()
                 S.busy = true
                 task.wait(S.am1 + math.random() * (S.am2 - S.am1))
                 if S.am and S.tok == tok then
-                    local okr = pcall(function() R.AR:FireServer(tok) end)
-                    if okr then S.tok = nil; traceLog("AM", "remote ответ отправлен") end
+                    pcall(function() R.AR:FireServer(tok) end)
+                    S.tok = nil
                 end
                 S.busy = false
             elseif btnVis then
                 local lastFallback = S.__lastFallback or 0
                 if (os.clock() - lastFallback) >= 2 then
                     S.__lastFallback = os.clock()
-                    local clicked, method = clickButton(btn)
-                    if clicked then traceLog("AM", "кнопка нажата через " .. method) end
+                    clickButton(btn)
                 end
             end
         end)
-        if not ok then Log("err:antimacro", tostring(err)); task.wait(2) end
+        if not ok then task.wait(2) end
     end
 end)
 Watchdog.spawn("antimacro")
@@ -662,7 +511,6 @@ local function mPush(a)
     a.Time = os.clock() - S.macroT0
     a.Cash = readVal("Cash")
     table.insert(S.macroActions, a)
-    traceLog("macro", "rec " .. tostring(a.Type))
 end
 
 local function mAttach(t, recordPlace)
@@ -760,11 +608,14 @@ local function mStartRec(name)
     S.macroRec = true
     local ok, err = mBind()
     if not ok then S.macroRec = false; return false, err end
-    traceLog("macro", "REC " .. name)
     return true
 end
 
 -- PART 3 END
+-- ══════════════════════════════════════════════════════════════════
+-- Часть 4/6 — Macros (save/load/dispatch/play/stop)
+-- ══════════════════════════════════════════════════════════════════
+
 local function mSave()
     local path = mPath(S.macroName)
     if not path then return false, "имя не задано" end
@@ -781,7 +632,6 @@ local function mSave()
     if not r_ok or type(r_data) ~= "table" or tonumber(r_data.actionCount) ~= #S.macroActions then
         return false, "верификация провалилась"
     end
-    traceLog("macro", "SAVE " .. path .. " (" .. tostring(#S.macroActions) .. ")")
     return true
 end
 
@@ -790,7 +640,6 @@ local function mStopRec(save)
     S.macroRec = false
     for _, c in ipairs(RecorderConns) do pcall(function() c:Disconnect() end) end
     RecorderConns = {}
-    traceLog("macro", "STOP " .. tostring(#S.macroActions) .. " actions")
     if save then return mSave() end
     return true
 end
@@ -807,7 +656,6 @@ local function mLoad(name)
     S.macroName = name
     S.macroActions = data.actions
     S.macroPlaceId = tonumber(data.placeId)
-    traceLog("macro", "LOAD " .. path .. " (" .. tostring(#S.macroActions) .. ")")
     return true
 end
 
@@ -894,7 +742,6 @@ local function mPlay()
     if not ok or type(snap) ~= "table" then return false, "снапшот fail" end
     S.macroPlay = true
     RuntimeHandles = {}
-    traceLog("macro", "PLAY (" .. tostring(#snap) .. ")")
     task.spawn(function()
         local t0 = os.clock()
         local speed = tonumber(S.macroSpeed) or 1
@@ -905,16 +752,10 @@ local function mPlay()
             target = target * (0.85 + math.random() * 0.3)
             local waitT = target - (os.clock() - t0)
             if waitT > 0 then task.wait(waitT) end
-            local ok2, err = mDispatch(a)
-            if not ok2 then
-                traceLog("macro", "action " .. tostring(i) .. " fail: " .. tostring(err))
-            end
-            if i % 10 == 0 then
-                traceLog("macro", "played " .. tostring(i) .. "/" .. tostring(#snap))
-            end
+            mDispatch(a)
+            if i % 10 == 0 then task.wait() end
         end
         S.macroPlay = false
-        traceLog("macro", "PLAY done")
     end)
     return true
 end
@@ -926,22 +767,24 @@ local function mStop()
         RecorderConns = {}
     end
     if S.macroPlay then S.macroPlay = false end
-    traceLog("macro", "STOP all")
 end
 
-local Macros = {
+_G.__WL_Macros = {
     StartRec=mStartRec, StopRec=mStopRec, Save=mSave, Load=mLoad,
     List=mList, Play=mPlay, Stop=mStop,
 }
-_G.__WL_Macros = Macros
 
 -- PART 4 END
+-- ══════════════════════════════════════════════════════════════════
+-- Часть 5/6 — AutoSell · AutoControl · Mutators · AutoSummon · AutoCrates
+-- ══════════════════════════════════════════════════════════════════
+
 Stage("part2/10-autosell")
 Watchdog.register("autosell", function()
     while S.Running do
         task.wait(.5)
         Watchdog.beat("autosell")
-        local ok, err = pcall(function()
+        local ok = pcall(function()
             if S.sel and rn() and wv() >= S.sellW and R.Sell and os.clock() - S.lsel > 3 then
                 S.lsel = os.clock()
                 for _, t in ipairs(mn()) do
@@ -952,7 +795,7 @@ Watchdog.register("autosell", function()
                 end
             end
         end)
-        if not ok then Log("err:autosell", tostring(err)); task.wait(2) end
+        if not ok then task.wait(2) end
     end
 end)
 Watchdog.spawn("autosell")
@@ -962,7 +805,12 @@ Watchdog.register("autocontrol", function()
     while S.Running do
         task.wait(1)
         Watchdog.beat("autocontrol")
-        local ok, err = pcall(function()
+        local ok = pcall(function()
+            if S.__abCdMatch ~= S.tracker.matches then
+                S.__abCdMatch = S.tracker.matches
+                S.abCd = setmetatable({},{__mode="k"})
+            end
+
             if S.sk and rn() and R.Skip and os.clock() - S.ls > 7 + math.random() * 3 then
                 S.ls = os.clock()
                 pcall(function() R.Skip:InvokeServer() end)
@@ -977,7 +825,6 @@ Watchdog.register("autocontrol", function()
                     Confirm.mapVoteAt = os.clock()
                     Confirm.mapVoteOK = false
                     pcall(function() R.VM:FireServer(S.mapV) end)
-                    traceLog("vote", "→ VoteForMap(" .. tostring(S.mapV) .. ")")
                     S.__votedMap = true
                     S.__votedMapDeadline = os.clock() + 3
                 elseif S.__votedMapDeadline and os.clock() > S.__votedMapDeadline then
@@ -999,7 +846,6 @@ Watchdog.register("autocontrol", function()
                     Confirm.compVoteAt = os.clock()
                     Confirm.compVoteOK = false
                     pcall(function() R.VC:FireServer(S.compV) end)
-                    traceLog("vote", "→ VoteForComplication(" .. tostring(S.compV) .. ")")
                     S.__votedComp = true
                     S.__votedCompDeadline = os.clock() + 3
                 elseif S.__votedCompDeadline and os.clock() > S.__votedCompDeadline then
@@ -1017,18 +863,22 @@ Watchdog.register("autocontrol", function()
             end
 
             if S.ab and rn() and R.AB and GetCD then
-                if os.clock() - (S.__lastCD or 0) > 2.5 then
+                if os.clock() - (S.__lastCD or 0) > 5 then
                     S.__lastCD = os.clock()
                     for _, t in ipairs(mn()) do
                         if t and t.Parent then
-                            local okr, ready = pcall(function() return GetCD:InvokeServer(t) end)
-                            if okr and ready == true then
-                                local key = tostring(t)
-                                local last = S.abCd[key] or 0
-                                local delay = 1.5 + math.random() * 2.5
-                                if os.clock() - last >= delay then
-                                    S.abCd[key] = os.clock()
-                                    pcall(function() R.AB:FireServer(t) end)
+                            local cfg = t:FindFirstChild("Config")
+                            local ab = cfg and cfg:FindFirstChild("Ability")
+                            if ab and ab.Value and tostring(ab.Value) ~= "" then
+                                local okr, ready = pcall(function() return GetCD:InvokeServer(t) end)
+                                if okr and ready == true then
+                                    local key = tostring(t)
+                                    local last = S.abCd[key] or 0
+                                    local delay = 2 + math.random() * 3
+                                    if os.clock() - last >= delay then
+                                        S.abCd[key] = os.clock()
+                                        pcall(function() R.AB:FireServer(t) end)
+                                    end
                                 end
                             end
                         end
@@ -1036,7 +886,7 @@ Watchdog.register("autocontrol", function()
                 end
             end
         end)
-        if not ok then Log("err:autocontrol", tostring(err)); task.wait(2) end
+        if not ok then task.wait(2) end
     end
 end)
 Watchdog.spawn("autocontrol")
@@ -1108,10 +958,6 @@ end
 local function mutTryVote(force)
     if not S.vmut or #mut.offer == 0 then return end
     if not force and (os.clock() - mut.offerAt) < 0.15 then return end
-    if mut.deadline then
-        local ok, t = pcall(function() return WS:GetServerTimeNow() end)
-        if ok and tonumber(t) and t >= mut.deadline then return end
-    end
     local choice = mutPickChoice()
     if not choice then return end
     if not force and mut.voteConfirmed and mut.lastVoteSerial == mut.voteSerial and mut.lastVoteId == choice then return end
@@ -1123,28 +969,22 @@ local function mutTryVote(force)
     mut.voteConfirmed = false
     mut.lastAttemptAt = os.clock()
     pcall(function() R.SM:FireServer("Vote", choice) end)
-    traceLog("mut", "vote →", choice)
 end
 
 local function mutRegisterOffer(list, deadline, source)
     if type(list) ~= "table" then return end
-    local clean, discovered = {}, {}
+    local clean = {}
     for _, item in ipairs(list) do
-        if type(item) == "table" then
-            local id = tostring(item.Id or "")
+        if type(item) == "table" and item.Id then
+            local id = tostring(item.Id)
             if id ~= "" then
                 local prior = mut.catalog[id]
-                local entry = {
+                table.insert(clean, {
                     Id=id,
                     Title=tostring(item.Title or (prior and prior.Title) or id),
-                    Bad=tostring(item.Bad or (prior and prior.Bad) or "Unknown drawback"),
-                    Good=tostring(item.Good or (prior and prior.Good) or "Unknown reward"),
-                }
-                table.insert(clean, entry)
-                if not prior or prior.Title ~= entry.Title or prior.Bad ~= entry.Bad or prior.Good ~= entry.Good then
-                    mut.catalog[id] = entry
-                    table.insert(discovered, entry.Title)
-                end
+                    Bad=tostring(item.Bad or (prior and prior.Bad) or ""),
+                    Good=tostring(item.Good or (prior and prior.Good) or ""),
+                })
             end
         end
     end
@@ -1167,13 +1007,13 @@ local function mutRegisterOffer(list, deadline, source)
     mut.voteConfirmed = false
     mut.lastAttemptAt = -math.huge
     mut.deadline = tonumber(deadline)
-    traceLog("mut", "offer ("..tostring(source).."):", sig)
     task.defer(mutTryVote, true)
 end
 
 local function mutRecoverFromGui()
     local pg = LP:FindFirstChildOfClass("PlayerGui")
     local root = pg and pg:FindFirstChild("SlopMutatorGui")
+    if root and not root.Enabled then root = nil end
     local voting = root and root:FindFirstChild("MutatorVoting", true)
     local function visible(o)
         if not o then return false end
@@ -1190,13 +1030,6 @@ local function mutRecoverFromGui()
             mut.offer = {}; mut.deadline = nil; mut.voteConfirmed = false; mut.guiSignature = nil
         end
         mut.guiWasOpen = false
-        local act = root and root:FindFirstChild("ActiveMutator", true)
-        if visible(act) then
-            local lbl = act:FindFirstChild("Title") or act:FindFirstChild("TextLabel")
-            local txt = (lbl and lbl:IsA("TextLabel") and tostring(lbl.Text or "")) or ""
-            txt = txt:gsub("^%s*Mutator:%s*",""):gsub("^%s+",""):gsub("%s+$","")
-            if txt ~= "" then mut.active = txt end
-        end
         return false
     end
     local list, found = {}, false
@@ -1206,10 +1039,9 @@ local function mutRecoverFromGui()
         if visible(child) and (good or bad) then
             found = true
             local prev = mut.catalog[child.Name]
-            local titleLbl = child:FindFirstChild("TextLabel", true) or child:FindFirstChild("Title", true)
             table.insert(list, {
                 Id=child.Name,
-                Title=(titleLbl and titleLbl:IsA("TextLabel") and titleLbl.Text) or (prev and prev.Title) or child.Name,
+                Title=(prev and prev.Title) or child.Name,
                 Bad=(bad and bad:IsA("TextLabel") and bad.Text) or (prev and prev.Bad) or "",
                 Good=(good and good:IsA("TextLabel") and good.Text) or (prev and prev.Good) or "",
             })
@@ -1239,7 +1071,6 @@ local function mutBindRemote()
             local mine = (mut.lastVoteId and tonumber(payload[mut.lastVoteId])) or 0
             if mut.lastVoteSerial == mut.voteSerial and mine > 0 then
                 mut.voteConfirmed = true
-                traceLog("mut", "vote confirmed:", mut.lastVoteId)
             end
         elseif action == "Active" then
             local id = (type(payload) == "table" and tostring(payload.Id or "")) or "None"
@@ -1247,23 +1078,22 @@ local function mutBindRemote()
             mut.active = id
             mut.offer = {}; mut.deadline = nil
             mut.voteConfirmed = true; mut.guiWasOpen = false; mut.guiSignature = nil
-            traceLog("mut", "active:", id)
         end
     end)
 end
 
 Watchdog.register("mutators", function()
     while S.Running do
-        task.wait(0.2)
+        task.wait(0.6)
         Watchdog.beat("mutators")
-        local ok, err = pcall(function()
+        local ok = pcall(function()
             mutBindRemote()
             mutRecoverFromGui()
             if S.vmut and #mut.offer > 0 and not mut.voteConfirmed then
                 mutTryVote(false)
             end
         end)
-        if not ok then traceLog("err:mutators", tostring(err)); task.wait(2) end
+        if not ok then task.wait(2) end
     end
 end)
 Watchdog.spawn("mutators")
@@ -1281,14 +1111,14 @@ Watchdog.register("autosummon", function()
     while S.Running do
         task.wait(.5)
         Watchdog.beat("autosummon")
-        local ok, err = pcall(function()
+        local ok = pcall(function()
             if S.sum and os.clock() - S.lsum >= S.sumD then
                 S.lsum = os.clock()
                 local r = ((S.sumCur == "Gem") and R.SumP) or R.Sum
                 if r then pcall(function() r:InvokeServer(S.sumA) end) end
             end
         end)
-        if not ok then Log("err:autosummon", tostring(err)); task.wait(2) end
+        if not ok then task.wait(2) end
     end
 end)
 Watchdog.spawn("autosummon")
@@ -1298,20 +1128,20 @@ Watchdog.register("autocrates", function()
     while S.Running do
         task.wait(1)
         Watchdog.beat("autocrates")
-        local ok, err = pcall(function()
+        local ok = pcall(function()
             if (S.buy or S.opn) and os.clock() - S.lcr >= S.crateD then
                 S.lcr = os.clock()
                 if S.buy and R.Buy then pcall(function() R.Buy:FireServer(S.crate, S.crateA) end) end
                 if S.opn and R.Open then pcall(function() R.Open:InvokeServer(S.crate, S.crateA) end) end
             end
         end)
-        if not ok then Log("err:autocrates", tostring(err)); task.wait(2) end
+        if not ok then task.wait(2) end
     end
 end)
 Watchdog.spawn("autocrates")
 
 -- PART 5 END
-Stage("part2/14-autoelevator")
+-- Stage("part2/14-autoelevator")
 local function getPadPos(elev)
     if not elev then return nil end
     local best, bestScore = nil, 0
@@ -1366,14 +1196,12 @@ Watchdog.register("autoelevator", function()
     while S.Running do
         task.wait(1)
         Watchdog.beat("autoelevator")
-        local ok, err = pcall(function()
+        local ok = pcall(function()
             if not (S.lobby and R.EE and R.SE) then lastElevName=""; retries=0; return end
             local best = pickElevator()
             if not best then return end
             if isPlayerInElev(best) then
-                if lastElevName ~= best.Name then
-                    traceLog("elev", "уже в " .. best.Name); lastElevName = best.Name
-                end
+                if lastElevName ~= best.Name then lastElevName = best.Name end
                 return
             end
             if lastElevName ~= best.Name then
@@ -1390,37 +1218,28 @@ Watchdog.register("autoelevator", function()
                 end
                 Confirm.elevEnterAt = os.clock(); Confirm.elevEnterOK = false
                 pcall(function() R.EE:FireServer(best.Name) end)
-                traceLog("elev", "→ EnterElevator(" .. best.Name .. ")")
                 local t0 = os.clock()
                 while os.clock() - t0 < 6 do
                     if Confirm.elevEnterOK or isPlayerInElev(best) then break end
                     task.wait(0.2)
                 end
                 if not (Confirm.elevEnterOK or isPlayerInElev(best)) then
-                    traceLog("elev", "✗ Enter не подтверждён"); lastElevName = ""; return
+                    lastElevName = ""; return
                 end
-                traceLog("elev", "✓ в лифте")
                 Confirm.elevStartAt = os.clock(); Confirm.teleportedAt = 0
                 pcall(function() R.SE:FireServer(best.Name) end)
-                traceLog("elev", "→ StartElevator(" .. best.Name .. ")")
                 local t1 = os.clock(); local teleported = false
                 while os.clock() - t1 < 20 do
                     if Confirm.teleportedAt > t1 then teleported = true; break end
                     task.wait(0.3)
                 end
-                if teleported then
-                    traceLog("elev", "✓ телепорт состоялся")
-                else
-                    traceLog("elev", "✗ телепорт не подтверждён")
-                    if isPlayerInElev(best) and retries < 3 then
-                        retries = retries + 1
-                        pcall(function() R.SE:FireServer(best.Name) end)
-                        traceLog("elev", "→ повтор Start " .. retries)
-                    end
+                if not teleported and isPlayerInElev(best) and retries < 3 then
+                    retries = retries + 1
+                    pcall(function() R.SE:FireServer(best.Name) end)
                 end
             end
         end)
-        if not ok then traceLog("err:elev", tostring(err)); task.wait(2) end
+        if not ok then task.wait(2) end
     end
 end)
 Watchdog.spawn("autoelevator")
@@ -1441,7 +1260,7 @@ Watchdog.register("matchend", function()
     while S.Running do
         task.wait(2)
         Watchdog.beat("matchend")
-        local ok, err = pcall(function()
+        local ok = pcall(function()
             local running = rn()
             local ended = isEndScreen()
             if running and not lastRun and S.tracker.lastMatchEnd == 0 then
@@ -1460,7 +1279,7 @@ Watchdog.register("matchend", function()
                 fired = false
             end
         end)
-        if not ok then Log("err:matchend", tostring(err)); task.wait(2) end
+        if not ok then task.wait(2) end
     end
 end)
 Watchdog.spawn("matchend")
@@ -1470,25 +1289,15 @@ Watchdog.register("autojump", function()
     while S.Running do
         task.wait(1)
         Watchdog.beat("autojump")
-        local ok, err = pcall(function()
+        local ok = pcall(function()
             if not S.jump then return end
             local ch = LP.Character
             local h = ch and ch:FindFirstChildOfClass("Humanoid")
             if not h or h.Sit then return end
             if h.FloorMaterial == Enum.Material.Air then return end
-            local ok2 = pcall(function() h:ChangeState(Enum.HumanoidStateType.Jumping) end)
-            if not ok2 then
-                local ok3, VIM = pcall(game.GetService, game, "VirtualInputManager")
-                if ok3 and VIM then
-                    pcall(function()
-                        VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-                        task.wait(0.1)
-                        VIM:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
-                    end)
-                end
-            end
+            pcall(function() h:ChangeState(Enum.HumanoidStateType.Jumping) end)
         end)
-        if not ok then Log("err:autojump", tostring(err)); task.wait(2) end
+        if not ok then task.wait(2) end
     end
 end)
 Watchdog.spawn("autojump")
@@ -1497,7 +1306,7 @@ Watchdog.register("walkaround", function()
     while S.Running do
         task.wait(.5)
         Watchdog.beat("walkaround")
-        local ok, err = pcall(function()
+        local ok = pcall(function()
             if not S.walk then return end
             local ch = LP.Character
             local h  = ch and ch:FindFirstChildOfClass("Humanoid")
@@ -1509,24 +1318,14 @@ Watchdog.register("walkaround", function()
                 pcall(function() h:MoveTo(S.walkC.Position + Vector3.new(math.cos(a)*r, 0, math.sin(a)*r)) end)
             end
         end)
-        if not ok then Log("err:walkaround", tostring(err)); task.wait(2) end
+        if not ok then task.wait(2) end
     end
 end)
 Watchdog.spawn("walkaround")
 
-Log("stage", "part2-done")
-
 Stage("part3/17-performance")
 local function fpsApply(on)
     if on then
-        if not S.fpsC then
-            S.fpsC = WS.DescendantAdded:Connect(function(o)
-                if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Beam")
-                   or o:IsA("Smoke") or o:IsA("Fire") or o:IsA("Sparkles") then
-                    pcall(function() S.fpsO[o] = o.Enabled; o.Enabled = false end)
-                end
-            end)
-        end
         for _, o in ipairs(WS:GetDescendants()) do
             if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Beam")
                or o:IsA("Smoke") or o:IsA("Fire") or o:IsA("Sparkles") then
@@ -1538,9 +1337,8 @@ local function fpsApply(on)
         end
         pcall(function() L.GlobalShadows = false end)
     else
-        if S.fpsC then pcall(function() S.fpsC:Disconnect() end); S.fpsC = nil end
         for o, v in pairs(S.fpsO) do pcall(function() if o.Parent then o.Enabled = v end end) end
-        S.fpsO = {}
+        S.fpsO = setmetatable({},{__mode="k"})
         pcall(function() L.GlobalShadows = true end)
     end
 end
@@ -1572,7 +1370,6 @@ local function bsApply(on)
     end
 end
 
-local hideC = {}
 local function hidApply(on)
     if on then
         local function h(o)
@@ -1587,18 +1384,8 @@ local function hidApply(on)
         for _, pl in ipairs(P:GetPlayers()) do
             if pl.Character then
                 for _, o in ipairs(pl.Character:GetDescendants()) do h(o) end
-                table.insert(hideC, pl.Character.DescendantAdded:Connect(h))
             end
         end
-        table.insert(hideC, P.PlayerAdded:Connect(function(pl)
-            pl.CharacterAdded:Connect(function(ch)
-                for _, o in ipairs(ch:GetDescendants()) do h(o) end
-                table.insert(hideC, ch.DescendantAdded:Connect(h))
-            end)
-        end))
-    else
-        for _, c in ipairs(hideC) do pcall(function() c:Disconnect() end) end
-        hideC = {}
     end
 end
 
@@ -1659,13 +1446,12 @@ end
 Stage("part3/19-autosave")
 Watchdog.register("autosave", function()
     while S.Running do
-        task.wait(5)
+        task.wait(30)
         Watchdog.beat("autosave")
-        local ok, err = pcall(function()
+        pcall(function()
             local cur = HS:JSONEncode(S)
             if cur ~= S.__lastCfg then saveCfg(S); S.__lastCfg = cur end
         end)
-        if not ok then Log("err:autosave", tostring(err)) end
     end
 end)
 Watchdog.spawn("autosave")
@@ -1675,40 +1461,33 @@ Watchdog.register("tracker-report", function()
     while S.Running do
         task.wait(60)
         Watchdog.beat("tracker-report")
-        local ok, err = pcall(function()
+        pcall(function()
             local elapsed = os.time() - S.tracker.lastReport
             if elapsed >= 1800 then
                 S.tracker.lastReport = os.time()
                 if S.wh and S.url ~= "" then sendTracker() end
             end
         end)
-        if not ok then Log("err:tracker-report", tostring(err)) end
     end
 end)
 Watchdog.spawn("tracker-report")
+
+-- PART 6a END
 Stage("part3/21-ui")
 local W = RF:CreateWindow({
-    Title = "wertlaider",
-    Author = "wertlaider",
-    Folder = "Wertlaider2",
-    Icon = "swords",
-    Theme = "Sky",
-    Size = UDim2.fromOffset(540, 440),
-    Transparent = true,
-    HideSearchBar = true,
-    NewElements = true,
-    ToggleKey = Enum.KeyCode.RightShift,
-    OpenButton = { Title="wertlaider", Enabled=true, Draggable=true, OnlyMobile=false }
+    Title="wertlaider", Author="wertlaider", Folder="Wertlaider2",
+    Icon="swords", Theme="Sky", Size=UDim2.fromOffset(540, 440),
+    Transparent=true, HideSearchBar=true, NewElements=true,
+    ToggleKey=Enum.KeyCode.RightShift,
+    OpenButton={Title="wertlaider", Enabled=true, Draggable=true, OnlyMobile=false}
 })
 
-local T1 = W:Tab({Title = "Match", Icon = "swords"})
-T1:Section({Title = "Vote"})
-T1:Dropdown({
-    Title="Map",
+local T1 = W:Tab({Title="Match", Icon="swords"})
+T1:Section({Title="Vote"})
+T1:Dropdown({Title="Map",
     Values={"BackroomsEndless","Base","Blood Moon","BrainrotEndless","Cooking Stove","Crossroads","Day","Desert","Doomspire","Dungeon","FairyEndless","GardenEndless","Gold Base","Happy Home","Kitchen Table","KitchenEndless","Level 1","Level 2","Level 3","Level0","Level94","Night","Night Base","NightPlot","Plot","Poolrooms","Raid","RetroEndless","RichPlot","Ruined City","Summer Raid","The Fridge","Toilet City","ToiletEndless"},
     Value=S.mapV, Multi=false, SearchBarEnabled=true,
-    Callback=function(v) S.mapV = v end
-})
+    Callback=function(v) S.mapV = v end})
 T1:Dropdown({Title="Complication", Values={"Normal","Hard","Nightmare","Chaos"}, Value=S.compV, Multi=false, Callback=function(v) S.compV = v end})
 T1:Toggle({Title="Auto Vote Map", Value=S.vm, Callback=function(v) S.vm = v end})
 T1:Toggle({Title="Auto Vote Complication", Value=S.vc, Callback=function(v) S.vc = v end})
@@ -1719,7 +1498,7 @@ end})
 T1:Dropdown({Title="Mutator Auto Pick", Desc="Priority / Highest Reward / No Mutator",
     Values={"Priority","Highest Reward","No Mutator"}, Value=S.mutPick, Multi=false,
     Callback=function(v) S.mutPick = v; if _G.__WL_Mutators then task.defer(_G.__WL_Mutators.vote, true) end end})
-T1:Dropdown({Title="Preferred Mutators", Desc="Select several, then set priorities below",
+T1:Dropdown({Title="Preferred Mutators", Desc="Select several",
     Values=(function()
         local t = {}
         for id,_ in pairs(MUT_BASE) do if id ~= "None" then table.insert(t, id) end end
@@ -1750,7 +1529,7 @@ for _, id in ipairs(S.mutSel or {}) do
     end
 end
 
-T1:Section({Title = "Macros"})
+T1:Section({Title="Macros"})
 T1:Input({Title="Macro Name", Placeholder="base1", Value=S.macroName,
     Callback=function(v) S.macroName = tostring(v):gsub("%s","") end})
 T1:Slider({Title="Playback Speed", Step=0.25,
@@ -1781,19 +1560,18 @@ T1:Button({Title="SAVE (manual)", Callback=function()
     RF:Notify({Title="wertlaider", Content= ok and "Сохранено" or ("Ошибка: "..tostring(err)), Duration=2})
 end})
 
-T1:Section({Title = "Control"})
+T1:Section({Title="Control"})
 T1:Toggle({Title="Auto Skip", Value=S.sk, Callback=function(v) S.sk = v end})
 T1:Toggle({Title="Auto Speed", Value=S.sp, Callback=function(v) S.sp = v end})
 T1:Slider({Title="Speed", Step=1, Value={Min=1, Max=5, Default=S.sv}, Callback=function(v) S.sv = v end})
 T1:Toggle({Title="Auto Ability", Value=S.ab, Callback=function(v) S.ab = v end})
 
-T1:Section({Title = "Endless"})
+T1:Section({Title="Endless"})
 T1:Toggle({Title="Auto Sell All", Value=S.sel, Callback=function(v) S.sel = v end})
 T1:Slider({Title="Sell At Wave", Step=10, Value={Min=10, Max=500, Default=S.sellW}, Callback=function(v) S.sellW = v end})
 
-T1:Section({Title = "Match End"})
-T1:Dropdown({
-    Title="After Match",
+T1:Section({Title="Match End"})
+T1:Dropdown({Title="After Match",
     Values={"Off","Replay","New Map","Return Lobby"},
     Value=(S.endAct=="None" and "Off" or (S.endAct=="Lobby" and "Return Lobby" or S.endAct)),
     Multi=false,
@@ -1802,8 +1580,7 @@ T1:Dropdown({
         elseif v=="New Map" then S.endAct = "New Map"
         elseif v=="Return Lobby" then S.endAct = "Lobby"
         else S.endAct = "None" end
-    end
-})
+    end})
 
 local T2 = W:Tab({Title="Lobby", Icon="door-open"})
 T2:Section({Title="Play"})
@@ -1811,13 +1588,11 @@ T2:Toggle({Title="Auto Elevator", Value=S.lobby, Callback=function(v) S.lobby = 
 T2:Dropdown({Title="Elevator Type", Desc="Auto / Normal / Raid",
     Values={"Auto","Normal","Raid"}, Value=S.elevType, Multi=false,
     Callback=function(v) S.elevType = v end})
-
 T2:Section({Title="Summon"})
 T2:Toggle({Title="Enable", Value=S.sum, Callback=function(v) S.sum = v end})
 T2:Dropdown({Title="Currency", Values={"Cash","Gem"}, Value=S.sumCur, Multi=false, Callback=function(v) S.sumCur = v end})
 T2:Dropdown({Title="Amount", Values={"x1","x10","x50"}, Value="x"..tostring(S.sumA), Multi=false, Callback=function(v) S.sumA = tonumber(v:match("%d+")) or 10 end})
 T2:Slider({Title="Delay", Step=0.5, Value={Min=0.5, Max=10, Default=S.sumD}, Callback=function(v) S.sumD = v end})
-
 T2:Section({Title="Crates"})
 T2:Dropdown({Title="Crate", Values={"Still Life Crate","Garden Crate","Alien Crate","Space Crate","Slopbux Crate 2"}, Value=S.crate, Multi=false, Callback=function(v) S.crate = v end})
 T2:Dropdown({Title="Amount", Values={"x1","x3","x10","x25","x50"}, Value="x"..tostring(S.crateA), Multi=false, Callback=function(v) S.crateA = tonumber(v:match("%d+")) or 1 end})
@@ -1835,11 +1610,9 @@ T3:Section({Title="Anti-Macro"})
 T3:Toggle({Title="Auto Anti-Macro", Value=S.am, Callback=function(v) S.am = v end})
 T3:Slider({Title="Delay Min", Step=0.1, Value={Min=0.1, Max=3, Default=S.am1}, Callback=function(v) S.am1 = v end})
 T3:Slider({Title="Delay Max", Step=0.1, Value={Min=0.2, Max=5, Default=S.am2}, Callback=function(v) S.am2 = v end})
-
 T3:Section({Title="Anti-AFK"})
 T3:Toggle({Title="Auto Jump", Value=S.jump, Callback=function(v) S.jump = v end})
 T3:Toggle({Title="Walk Around", Value=S.walk, Callback=function(v) S.walk = v end})
-
 T3:Section({Title="Performance"})
 T3:Toggle({Title="FPS Boost", Value=S.fps, Callback=function(v) S.fps = v; fpsApply(v) end})
 T3:Toggle({Title="Black Screen", Value=S.blk, Callback=function(v) S.blk = v; bsApply(v) end})
@@ -1849,7 +1622,6 @@ local T4 = W:Tab({Title="Webhook", Icon="radio"})
 T4:Section({Title="Discord"})
 T4:Input({Title="URL", Placeholder="https://...", Value=S.url, Callback=function(v) S.url = v end})
 T4:Toggle({Title="Enable", Value=S.wh, Callback=function(v) S.wh = v end})
-
 T4:Section({Title="Reports"})
 T4:Button({Title="Send Cash/Gems", Callback=function()
     local ok = send(false)
@@ -1863,7 +1635,6 @@ T4:Button({Title="Send Progress Tracker", Callback=function()
     local ok = sendTracker()
     RF:Notify({Title="wertlaider", Content= ok and "Трекер отправлен" or "Ошибка", Duration=3})
 end})
-
 T4:Section({Title="Config"})
 T4:Button({Title="Save Config Now", Callback=function()
     saveCfg(S)
@@ -1885,7 +1656,8 @@ T4:Button({Title="Reset Config", Callback=function()
 end})
 
 RF:Notify({Title="wertlaider", Content="Загружен", Duration=3})
-traceLog("session", "=== hub ready ===")
-Log("stage", "part3-done")
 
--- PART 6 END — FULL PROJECT COMPLETE
+-- PART 6b END
+-- ══════════════════════════════════════════════════════════════════
+-- FULL PROJECT COMPLETE
+-- ══════════════════════════════════════════════════════════════════
