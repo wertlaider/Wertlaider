@@ -612,13 +612,14 @@ local function mStartRec(name)
 end
 
 -- PART 3 END
--- ══════════════════════════════════════════════════════════════════
--- Часть 4/6 — Macros (save/load/dispatch/play/stop)
+-- -- ══════════════════════════════════════════════════════════════════
+-- Часть 4/6 — Macros (save / load / list / dispatch / play / stop)
 -- ══════════════════════════════════════════════════════════════════
 
 local function mSave()
     local path = mPath(S.macroName)
     if not path then return false, "имя не задано" end
+
     local payload = {
         version = 1, game = "Slop TD", placeId = game.PlaceId,
         name = S.macroName, recordedAt = os.time(),
@@ -626,45 +627,97 @@ local function mSave()
     }
     local ok, encoded = pcall(function() return HS:JSONEncode(payload) end)
     if not ok then return false, "encode fail" end
-    local wok, werr = pcall(writefile, path, encoded)
-    if not wok then return false, tostring(werr) end
-    local r_ok, r_data = pcall(function() return HS:JSONDecode(readfile(path)) end)
-    if not r_ok or type(r_data) ~= "table" or tonumber(r_data.actionCount) ~= #S.macroActions then
-        return false, "верификация провалилась"
+
+    -- 1. Пишем в .pending
+    local pendingPath = path .. ".pending"
+    local w1 = pcall(writefile, pendingPath, encoded)
+    if not w1 then return false, "pending write fail" end
+
+    -- 2. Верифицируем .pending
+    local vok, vdata = pcall(function() return HS:JSONDecode(readfile(pendingPath)) end)
+    if not vok or type(vdata) ~= "table" or tonumber(vdata.actionCount) ~= #S.macroActions then
+        pcall(function() delfile(pendingPath) end)
+        return false, "pending verify fail"
     end
+
+    -- 3. Если основной файл существует — делаем .bak
+    local bakPath = path .. ".bak"
+    if isfile(path) then
+        local oldOk, oldContent = pcall(function() return readfile(path) end)
+        if oldOk and type(oldContent) == "string" then
+            pcall(writefile, bakPath, oldContent)
+        end
+    end
+
+    -- 4. Пишем финальный файл
+    local w2 = pcall(writefile, path, encoded)
+    if not w2 then return false, "final write fail (backup saved)" end
+
+    -- 5. Верифицируем финал
+    local fok, fdata = pcall(function() return HS:JSONDecode(readfile(path)) end)
+    if not fok or type(fdata) ~= "table" or tonumber(fdata.actionCount) ~= #S.macroActions then
+        return false, "final verify fail (backup preserved)"
+    end
+
+    -- 6. Убираем .pending
+    pcall(function() delfile(pendingPath) end)
+
     return true
 end
 
 local function mStopRec(save)
     if not S.macroRec then return false, "не пишем" end
+    local count = #S.macroActions
     S.macroRec = false
     for _, c in ipairs(RecorderConns) do pcall(function() c:Disconnect() end) end
     RecorderConns = {}
-    if save then return mSave() end
-    return true
+    if save then
+        local ok, err = mSave()
+        return ok, ok and count or err
+    end
+    return true, count
 end
 
 local function mLoad(name)
     name = mSan(name or S.macroName)
     local path = mPath(name)
     if not path then return false, "имя не задано" end
-    if not isfile(path) then return false, "файл не найден" end
-    local ok, data = pcall(function() return HS:JSONDecode(readfile(path)) end)
-    if not ok or type(data) ~= "table" or type(data.actions) ~= "table" then
-        return false, "битый файл"
+
+    -- пробуем основной, потом .bak, потом .pending
+    local candidates = { path, path .. ".bak", path .. ".pending" }
+    local lastErr = "файл не найден"
+    local found = false
+
+    for _, p in ipairs(candidates) do
+        if isfile(p) then
+            found = true
+            local ok, data = pcall(function() return HS:JSONDecode(readfile(p)) end)
+            if ok and type(data) == "table" and type(data.actions) == "table" then
+                S.macroName = name
+                S.macroActions = data.actions
+                S.macroPlaceId = tonumber(data.placeId)
+                return true, #data.actions
+            end
+            lastErr = "битый: " .. tostring(p):sub(-30)
+        end
     end
-    S.macroName = name
-    S.macroActions = data.actions
-    S.macroPlaceId = tonumber(data.placeId)
-    return true
+
+    if not found then return false, "файл не найден" end
+    return false, lastErr
 end
 
 local function mList()
     if type(listfiles) ~= "function" then return {} end
-    local out = {}
+    local seen, out = {}, {}
     for _, f in ipairs(listfiles(MACRO_DIR) or {}) do
-        local n = tostring(f):match("([^/\\]+)%.json$")
-        if n then table.insert(out, n) end
+        local base = tostring(f):match("([^/\\]+)%.json$")
+        if base then
+            base = base:gsub("%.bak$", ""):gsub("%.pending$", "")
+            if base ~= "" and not seen[base] then
+                seen[base] = true
+                table.insert(out, base)
+            end
+        end
     end
     table.sort(out)
     return out
@@ -734,14 +787,30 @@ end
 local function mPlay()
     if S.macroRec then return false, "сначала STOP REC" end
     if S.macroPlay then return false, "уже играет" end
-    if #S.macroActions == 0 then return false, "пусто" end
+
+    -- если в памяти пусто — пробуем с диска
+    if #S.macroActions == 0 and S.macroName ~= "" then
+        local ok, err = mLoad(S.macroName)
+        if not ok then
+            return false, "в памяти пусто, на диске: " .. tostring(err)
+        end
+    end
+
+    if #S.macroActions == 0 then return false, "пусто, ничего не записано" end
+
     if S.macroPlaceId and S.macroPlaceId ~= game.PlaceId then
         return false, "макрос из другого плейса"
     end
+
     local ok, snap = pcall(function() return HS:JSONDecode(HS:JSONEncode(S.macroActions)) end)
-    if not ok or type(snap) ~= "table" then return false, "снапшот fail" end
+    if not ok or type(snap) ~= "table" or #snap == 0 then
+        return false, "снапшот пуст"
+    end
+
     S.macroPlay = true
     RuntimeHandles = {}
+    local count = #snap
+
     task.spawn(function()
         local t0 = os.clock()
         local speed = tonumber(S.macroSpeed) or 1
@@ -757,7 +826,8 @@ local function mPlay()
         end
         S.macroPlay = false
     end)
-    return true
+
+    return true, count
 end
 
 local function mStop()
@@ -770,13 +840,17 @@ local function mStop()
 end
 
 _G.__WL_Macros = {
-    StartRec=mStartRec, StopRec=mStopRec, Save=mSave, Load=mLoad,
-    List=mList, Play=mPlay, Stop=mStop,
+    StartRec = mStartRec,
+    StopRec  = mStopRec,
+    Save     = mSave,
+    Load     = mLoad,
+    List     = mList,
+    Play     = mPlay,
+    Stop     = mStop,
 }
 
 -- PART 4 END
--- 
--- ══════════════════════════════════════════════════════════════════
+ ══════════════════════════════════════════════════════════════════
 -- Часть 5/6 — AutoSell · AutoControl · Mutators ·
 --             AutoSummon · AutoCrates
 -- ══════════════════════════════════════════════════════════════════
