@@ -165,7 +165,7 @@ local function wrapRemote(name, obj)
         function proxy.InvokeServer(_, ...)
             local t0 = os.clock()
             local a = fmtArgs(...)
-            local ok, res = pcall(function() return obj:InvokeServer(...) end)
+            local ok, res = pcall(function(...) return obj:InvokeServer(...) end, ...)
             local dt = (os.clock() - t0) * 1000
             if not ok then
                 traceLog("invoke-fail", name, a, "→", tostring(res))
