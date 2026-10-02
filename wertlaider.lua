@@ -1,7 +1,3 @@
--- 
--- wertlaider 0.9.0 — clean build (no disk logs, no leak)
--- Часть 1/6: Logger-stub · UI-load · Core · Remotes · Confirm
--- 
 local function Log(tag, ...) end
 local function Stage(name) end
 
@@ -33,7 +29,7 @@ local L  = game:GetService("Lighting")
 local R2 = game:GetService("RunService")
 local LP = P.LocalPlayer
 
-local DEF_URL   = "" -- Set your own webhook URL in the UI or wl_webhook.txt
+local DEF_URL   = ""
 local SAVE_FILE = "wertlaider_cfg.json"
 
 Stage("part1/3-remotes")
@@ -71,7 +67,6 @@ local TRACE_DIR  = "wl_traces"
 local TRACE_FILE = TRACE_DIR .. "/traces.log"
 local function traceLog(tag, ...) end
 local function wrapRemote(name, obj) return obj end
-
 local _R_orig = R
 
 Stage("part1/3.6-confirm")
@@ -100,8 +95,6 @@ end, "ElevatorEntered")
 safeConnect(ev and ev:FindFirstChild("OnTeleported"), function(...)
     Confirm.teleportedAt = os.clock()
 end, "OnTeleported")
-
--- PART 1 END
 Stage("part1/3.7-watchdog")
 local Watchdog = { loops = {} }
 function Watchdog.register(name, fn)
@@ -344,8 +337,6 @@ _G.__WL = {
     _R_orig=_R_orig, DEF_URL=DEF_URL, SAVE_FILE=SAVE_FILE, SAVE_KEYS=SAVE_KEYS,
     TRACE_DIR=TRACE_DIR, TRACE_FILE=TRACE_FILE,
 }
-
--- PART 2 END
 local G = _G.__WL
 if not G then error("part1 не запущена") end
 local P, RS, WS, HS, L, R2, LP = G.P, G.RS, G.WS, G.HS, G.L, G.R2, G.LP
@@ -613,12 +604,9 @@ local function mStartRec(name)
     if not ok then S.macroRec = false; return false, err end
     return true
 end
-
--- PART 3 END
 local function mSave()
     local path = mPath(S.macroName)
     if not path then return false, "имя не задано" end
-
     local payload = {
         version = 1, game = "Slop TD", placeId = game.PlaceId,
         name = S.macroName, recordedAt = os.time(),
@@ -626,17 +614,14 @@ local function mSave()
     }
     local ok, encoded = pcall(function() return HS:JSONEncode(payload) end)
     if not ok then return false, "encode fail" end
-
     local pendingPath = path .. ".pending"
     local w1 = pcall(writefile, pendingPath, encoded)
     if not w1 then return false, "pending write fail" end
-
     local vok, vdata = pcall(function() return HS:JSONDecode(readfile(pendingPath)) end)
     if not vok or type(vdata) ~= "table" or tonumber(vdata.actionCount) ~= #S.macroActions then
         pcall(function() delfile(pendingPath) end)
         return false, "pending verify fail"
     end
-
     local bakPath = path .. ".bak"
     if isfile(path) then
         local oldOk, oldContent = pcall(function() return readfile(path) end)
@@ -644,17 +629,13 @@ local function mSave()
             pcall(writefile, bakPath, oldContent)
         end
     end
-
     local w2 = pcall(writefile, path, encoded)
     if not w2 then return false, "final write fail (backup saved)" end
-
     local fok, fdata = pcall(function() return HS:JSONDecode(readfile(path)) end)
     if not fok or type(fdata) ~= "table" or tonumber(fdata.actionCount) ~= #S.macroActions then
         return false, "final verify fail (backup preserved)"
     end
-
     pcall(function() delfile(pendingPath) end)
-
     return true
 end
 
@@ -675,11 +656,9 @@ local function mLoad(name)
     name = mSan(name or S.macroName)
     local path = mPath(name)
     if not path then return false, "имя не задано" end
-
     local candidates = { path, path .. ".bak", path .. ".pending" }
     local lastErr = "файл не найден"
     local found = false
-
     for _, p in ipairs(candidates) do
         if isfile(p) then
             found = true
@@ -693,7 +672,6 @@ local function mLoad(name)
             lastErr = "битый: " .. tostring(p):sub(-30)
         end
     end
-
     if not found then return false, "файл не найден" end
     return false, lastErr
 end
@@ -725,6 +703,7 @@ local function mDispatch(a)
         local unit = tostring(a.Unit or "")
         if unit == "" then return false, "bad unit" end
         if base == "" then base = unit end
+
         local deadline = os.clock() + 300
         while S.macroPlay and os.clock() < deadline do
             if wv() >= (tonumber(a.Wave) or 0) and readVal("Cash") >= (tonumber(a.Cost) or 0) then break end
@@ -734,24 +713,42 @@ local function mDispatch(a)
         if wv() < (tonumber(a.Wave) or 0) or readVal("Cash") < (tonumber(a.Cost) or 0) then
             return false, "place prerequisites timeout"
         end
+
         local before = {}
         for _, v in ipairs(mn()) do before[v] = true end
-        pcall(function() R.Req:InvokeServer({unit, base}, false, true) end)
+
+        local reqA, reqB, reqC = R.Req:InvokeServer({unit, base}, false, true)
+        if reqA == false then return false, "RequestTower rejected" end
+        local reqData = (type(reqC) == "table" and reqC) or (type(reqB) == "table" and reqB) or {}
         task.wait(0.05)
-        local jx = (math.random() - 0.5) * 0.6
-        local jz = (math.random() - 0.5) * 0.6
+
+        local jx = (math.random() - 0.5) * 0.4
+        local jz = (math.random() - 0.5) * 0.4
         local pos = cf.Position + Vector3.new(jx, 0, jz)
-        local ok, res = pcall(function() R.Spawn:InvokeServer(base, pos, false, unit, {}) end)
-        if not ok then return false, "Spawn: " .. tostring(res) end
+
+        local ok, res = pcall(function()
+            return R.Spawn:InvokeServer(base, pos, false, unit, reqData)
+        end)
+        if not ok then return false, "Spawn error: " .. tostring(res) end
+        if res == false then return false, "SpawnTower rejected" end
         task.wait(0.3)
-        local newT = nil
-        for _, t in ipairs(mn()) do if not before[t] then newT = t; break end end
-        if not newT then for _, t in ipairs(mn()) do if lv(t) == 0 then newT = t; break end end end
-        if newT then RuntimeHandles[a.Handle] = newT; return true end
-        return false, "no new tower"
+
+        local newT = (typeof(res) == "Instance") and res or nil
+        if not newT or not newT.Parent then
+            for _, t in ipairs(mn()) do if not before[t] then newT = t; break end end
+        end
+        if not newT then
+            for _, t in ipairs(mn()) do if lv(t) == 0 then newT = t; break end end
+        end
+        if not newT then return false, "no new tower" end
+
+        RuntimeHandles[a.Handle] = newT
+        return true
     end
+
     local t = RuntimeHandles[a.Handle]
     if not t or not t.Parent then return false, "handle lost" end
+
     if kind == "Upgrade" then
         local cur = lv(t)
         local target = tonumber(a.Level) or cur + 1
@@ -766,17 +763,21 @@ local function mDispatch(a)
         task.wait(0.3)
         return true
     end
+
     if kind == "Sell" then
         pcall(function() R.Sell:InvokeServer(t) end)
         RuntimeHandles[a.Handle] = nil
         task.wait(0.3)
         return true
     end
+
     if kind == "Target" then return true end
+
     if kind == "Ability" then
         if R.AB then pcall(function() R.AB:FireServer(t) end) end
         return true
     end
+
     return true
 end
 
@@ -854,8 +855,6 @@ _G.__WL_Macros = {
     Play     = mPlay,
     Stop     = mStop,
 }
-
--- PART 4 END
 Stage("part2/10-autosell")
 Watchdog.register("autosell", function()
     while S.Running do
@@ -1216,8 +1215,6 @@ Watchdog.register("autocrates", function()
     end
 end)
 Watchdog.spawn("autocrates")
-
--- PART 5 END
 Stage("part2/14-autoelevator")
 local function getPadPos(elev)
     if not elev then return nil end
@@ -1590,8 +1587,6 @@ Watchdog.register("tracker-report", function()
     end
 end)
 Watchdog.spawn("tracker-report")
-
--- PART 6a END
 Stage("part3/21-ui")
 local W = RF:CreateWindow({
     Title="wertlaider", Author="wertlaider", Folder="Wertlaider2",
@@ -1828,5 +1823,3 @@ _G.__WL_Stop = function()
     if g.S.__wlStop then return end
     g.S.__wlStop = true
 end
-
--- PART 6b END
