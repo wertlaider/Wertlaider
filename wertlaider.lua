@@ -374,6 +374,7 @@ local S = {
     Running=true,
     am=false, sel=false, sk=false, sp=false,
     vm=false, vc=false, vmut=false,
+mutPick="Priority", mutSel={}, mutPri={}, mutCat={},
     sum=false, sumCur="Cash", sumA=10, sumD=1.5,
     buy=false, opn=false, crate="Still Life Crate", crateA=1, crateD=2,
     lobby=false, jump=false, walk=false,
