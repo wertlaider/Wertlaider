@@ -1587,13 +1587,45 @@ Watchdog.register("matchend", function()
             end
             lastRun = running
             if ended and not fired then
-                fired = true
-                if S.endAct == "Replay" and R.ED then pcall(function() R.ED:FireServer(true) end)
-                elseif S.endAct == "New Map" and R.ED then pcall(function() R.ED:FireServer("new") end)
-                elseif S.endAct == "Lobby" and R.EX then pcall(function() R.EX:FireServer() end) end
-            elseif not ended then
-                fired = false
+    fired = true
+    local pg = LP:FindFirstChildOfClass("PlayerGui")
+    local es = pg and pg:FindFirstChild("GameGui") and pg.GameGui:FindFirstChild("EndScreen")
+    local wantText = nil
+    if S.endAct == "Replay" then wantText = {"replay","again"}
+    elseif S.endAct == "New Map" then wantText = {"new map","newmap","next"}
+    elseif S.endAct == "Lobby" then wantText = {"lobby","menu","exit","leave","return"}
+    end
+    local clicked = false
+    if es and wantText then
+        for _, d in ipairs(es:GetDescendants()) do
+            if d:IsA("GuiButton") then
+                local txt = tostring(d.Text or ""):lower()
+                for _, w in ipairs(wantText) do
+                    if txt:find(w, 1, true) then
+                        if type(firesignal) == "function" then
+                            pcall(firesignal, d.MouseButton1Click)
+                        end
+                        if type(getconnections) == "function" then
+                            for _, c in ipairs(getconnections(d.MouseButton1Click)) do
+                                if type(c.Fire) == "function" then pcall(c.Fire, c) end
+                            end
+                        end
+                        clicked = true
+                        break
+                    end
+                end
+                if clicked then break end
             end
+        end
+    end
+    if not clicked then
+        if S.endAct == "Replay" and R.ED then pcall(function() R.ED:FireServer(true) end)
+        elseif S.endAct == "New Map" and R.ED then pcall(function() R.ED:FireServer("new") end)
+        elseif S.endAct == "Lobby" and R.EX then pcall(function() R.EX:FireServer() end) end
+    end
+elseif not ended then
+    fired = false
+end
         end)
         if not ok then task.wait(2) end
     end
