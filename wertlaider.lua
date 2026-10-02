@@ -1,6 +1,17 @@
+-- ============================================================
+-- WERTLAIDER 0.9.0 --- PART 1/7
+-- Logger stub | UI load | Core services | Remotes | Confirm
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- [BLOCK 1] Log/Stage stubs
+-- ------------------------------------------------------------
 local function Log(tag, ...) end
 local function Stage(name) end
 
+-- ------------------------------------------------------------
+-- [BLOCK 2] WindUI load
+-- ------------------------------------------------------------
 Stage("part1/1-ui-load")
 local RF, UI_err
 do
@@ -20,6 +31,9 @@ do
 end
 if not RF then return end
 
+-- ------------------------------------------------------------
+-- [BLOCK 3] Core services
+-- ------------------------------------------------------------
 Stage("part1/2-core")
 local P  = game:GetService("Players")
 local RS = game:GetService("ReplicatedStorage")
@@ -32,6 +46,9 @@ local LP = P.LocalPlayer
 local DEF_URL   = ""
 local SAVE_FILE = "wertlaider_cfg.json"
 
+-- ------------------------------------------------------------
+-- [BLOCK 4] Remote discovery
+-- ------------------------------------------------------------
 Stage("part1/3-remotes")
 local fn = RS:FindFirstChild("Functions")
 local ev = RS:FindFirstChild("Events")
@@ -62,6 +79,9 @@ R.EE = ev and ev:FindFirstChild("EnterElevator")
 R.SE = ev and ev:FindFirstChild("StartElevator")
 local GetCD = fn and fn:FindFirstChild("GetAbilityCooldown")
 
+-- ------------------------------------------------------------
+-- [BLOCK 5] Tracer/wrap stubs
+-- ------------------------------------------------------------
 Stage("part1/3.5-tracer")
 local TRACE_DIR  = "wl_traces"
 local TRACE_FILE = TRACE_DIR .. "/traces.log"
@@ -69,6 +89,9 @@ local function traceLog(tag, ...) end
 local function wrapRemote(name, obj) return obj end
 local _R_orig = R
 
+-- ------------------------------------------------------------
+-- [BLOCK 6] Confirmation listeners
+-- ------------------------------------------------------------
 Stage("part1/3.6-confirm")
 local Confirm = {
     mapVoteAt=0, mapVoteOK=false, compVoteAt=0, compVoteOK=false,
@@ -95,6 +118,18 @@ end, "ElevatorEntered")
 safeConnect(ev and ev:FindFirstChild("OnTeleported"), function(...)
     Confirm.teleportedAt = os.clock()
 end, "OnTeleported")
+
+-- ============================================================
+-- >>> PART 1/7 END <<<
+-- ============================================================
+-- ============================================================
+-- WERTLAIDER 0.9.0 --- PART 2/7
+-- Watchdog | Unit helpers | Config | State | Utils | Tracker | EXPORT
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- [BLOCK 7] Watchdog
+-- ------------------------------------------------------------
 Stage("part1/3.7-watchdog")
 local Watchdog = { loops = {} }
 function Watchdog.register(name, fn)
@@ -122,6 +157,9 @@ function Watchdog.spawn(name)
 end
 _G.__WL_Watchdog = Watchdog
 
+-- ------------------------------------------------------------
+-- [BLOCK 8] Unit variant helpers (Shiny/Gold/Rainbow/Void)
+-- ------------------------------------------------------------
 local VARIANT_SUFFIXES = {" Gold", " Rainbow", " Shiny", " Void"}
 
 local function unitVariant(name)
@@ -146,6 +184,9 @@ local function unitBase(name)
     return s
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 9] Config save/load
+-- ------------------------------------------------------------
 Stage("part1/4-config")
 local SAVE_KEYS = {
     "am","sel","sk","sp","vm","vc","vmut",
@@ -180,6 +221,9 @@ local function loadCfg(S)
     return false
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 10] State table
+-- ------------------------------------------------------------
 Stage("part1/5-state")
 local S = {
     Running=true,
@@ -207,6 +251,9 @@ local S = {
 loadCfg(S)
 S.url = loadUrl()
 
+-- ------------------------------------------------------------
+-- [BLOCK 11] Utils (game state readers)
+-- ------------------------------------------------------------
 Stage("part1/6-utils")
 local function rnd(b, p)
     if p <= 0 then return b end
@@ -239,6 +286,9 @@ local function ivc()
     return v and v.Value
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 12] My towers (cached)
+-- ------------------------------------------------------------
 local mnCacheList, mnCacheAt = {}, 0
 local function mn()
     local now = os.clock()
@@ -260,6 +310,10 @@ local function lv(t)
     local l = c and c:FindFirstChild("LVL")
     return l and tonumber(l.Value) or 0
 end
+
+-- ------------------------------------------------------------
+-- [BLOCK 13] Value readers
+-- ------------------------------------------------------------
 local function readVal(name)
     local v = LP:FindFirstChild(name)
     if v and v:IsA("ValueBase") then
@@ -286,6 +340,10 @@ local function readVal(name)
     end
     return 0
 end
+
+-- ------------------------------------------------------------
+-- [BLOCK 14] GUID extraction (for AntiMacro token)
+-- ------------------------------------------------------------
 local function uu(v, d)
     d = (d or 0) + 1
     if d > 4 then return nil end
@@ -300,6 +358,10 @@ local function uu(v, d)
         end
     end
 end
+
+-- ------------------------------------------------------------
+-- [BLOCK 15] Materials reader
+-- ------------------------------------------------------------
 local function getMaterials()
     local out = {}
     if not R.Data then return out end
@@ -317,6 +379,9 @@ local function getMaterials()
     return out
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 16] Tracker init
+-- ------------------------------------------------------------
 Stage("part1/7-tracker")
 local function initTracker()
     S.tracker.startCash = readVal("Cash")
@@ -345,6 +410,9 @@ task.spawn(function()
     pcall(initTracker)
 end)
 
+-- ------------------------------------------------------------
+-- [BLOCK 17] Export _G.__WL
+-- ------------------------------------------------------------
 _G.__WL = {
     P=P, RS=RS, WS=WS, HS=HS, L=L, R2=R2, LP=LP,
     R=R, S=S, RF=RF, fn=fn, ev=ev, rm=rm, GetCD=GetCD,
@@ -357,6 +425,18 @@ _G.__WL = {
     _R_orig=_R_orig, DEF_URL=DEF_URL, SAVE_FILE=SAVE_FILE, SAVE_KEYS=SAVE_KEYS,
     TRACE_DIR=TRACE_DIR, TRACE_FILE=TRACE_FILE,
 }
+
+-- ============================================================
+-- >>> PART 2/7 END <<<
+-- ============================================================
+-- ============================================================
+-- WERTLAIDER 0.9.0 --- PART 3/7
+-- AntiMacro | Macros (start/record/attach)
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- [BLOCK 18] Bootstrap globals from Part 1/2
+-- ------------------------------------------------------------
 local G = _G.__WL
 if not G then error("part1 не запущена") end
 local P, RS, WS, HS, L, R2, LP = G.P, G.RS, G.WS, G.HS, G.L, G.R2, G.LP
@@ -374,6 +454,9 @@ local _R_orig = G._R_orig
 local DEF_URL, SAVE_FILE, SAVE_KEYS = G.DEF_URL, G.SAVE_FILE, G.SAVE_KEYS
 local TRACE_DIR, TRACE_FILE = G.TRACE_DIR, G.TRACE_FILE
 
+-- ------------------------------------------------------------
+-- [BLOCK 19] Anti-Macro: find button
+-- ------------------------------------------------------------
 Stage("part2/8-antimacro")
 local function findAntiBtn()
     local pg = LP:FindFirstChildOfClass("PlayerGui")
@@ -391,6 +474,9 @@ local function findAntiBtn()
     return nil
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 20] Anti-Macro: visibility check
+-- ------------------------------------------------------------
 local function isVisible(obj)
     if not obj or not obj:IsDescendantOf(game) then return false end
     local cur = obj
@@ -402,6 +488,9 @@ local function isVisible(obj)
     return true
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 21] Anti-Macro: three click methods
+-- ------------------------------------------------------------
 local function clickButton(btn)
     if not btn then return false, "no_btn" end
     local mb = btn.MouseButton1Click
@@ -433,6 +522,9 @@ local function clickButton(btn)
     return false, "all_failed"
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 22] Anti-Macro: bind Check remote
+-- ------------------------------------------------------------
 local lastCheckRemote = nil
 local lastCheckConnection = nil
 local function bindCheck()
@@ -458,6 +550,9 @@ local function bindCheck()
     end
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 23] Anti-Macro: main loop
+-- ------------------------------------------------------------
 Watchdog.register("antimacro", function()
     while S.Running do
         task.wait(0.25)
@@ -492,6 +587,9 @@ Watchdog.register("antimacro", function()
 end)
 Watchdog.spawn("antimacro")
 
+-- ------------------------------------------------------------
+-- [BLOCK 24] Macros: init dir and helpers
+-- ------------------------------------------------------------
 Stage("part2/9-macros")
 local MACRO_DIR = "wertlaider_macros"
 if type(isfolder) == "function" and type(makefolder) == "function" then
@@ -517,11 +615,17 @@ local function tHandle(t)
     return tostring(t.Name)
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 25] Macros: recorder state
+-- ------------------------------------------------------------
 local TowerMeta = setmetatable({}, {__mode="k"})
 local RuntimeHandles = {}
 local RecorderConns = {}
 local NextHandle = 1
 
+-- ------------------------------------------------------------
+-- [BLOCK 26] Macros: push action
+-- ------------------------------------------------------------
 local function mPush(a)
     a.Wave = wv()
     a.Time = os.clock() - S.macroT0
@@ -529,6 +633,9 @@ local function mPush(a)
     table.insert(S.macroActions, a)
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 27] Macros: attach recorder to tower
+-- ------------------------------------------------------------
 local function mAttach(t, recordPlace)
     if not t or TowerMeta[t] then return end
     local deadline = os.clock() + 3
@@ -600,6 +707,9 @@ local function mAttach(t, recordPlace)
     end))
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 28] Macros: bind to Workspace.Towers
+-- ------------------------------------------------------------
 local function mBind()
     for _, c in ipairs(RecorderConns) do pcall(function() c:Disconnect() end) end
     RecorderConns = {}
@@ -614,6 +724,9 @@ local function mBind()
     return true
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 29] Macros: start recording
+-- ------------------------------------------------------------
 local function mStartRec(name)
     if S.macroPlay then return false, "плейбек идёт" end
     if S.macroRec then return false, "уже пишем" end
@@ -625,7 +738,7 @@ local function mStartRec(name)
         local cfg = t:FindFirstChild("Config")
         local own = cfg and cfg:FindFirstChild("Owner")
         if own and tostring(own.Value) == LP.Name then
-            return false, "уже есть твои башни — начни чистый матч"
+            return false, "уже есть твои башни --- начни чистый матч"
         end
     end
     S.macroName = name
@@ -636,6 +749,18 @@ local function mStartRec(name)
     if not ok then S.macroRec = false; return false, err end
     return true
 end
+
+-- ============================================================
+-- >>> PART 3/7 END <<<
+-- ============================================================
+-- ============================================================
+-- WERTLAIDER 0.9.0 --- PART 4/7
+-- Macros: save | load | dispatch | play | stop
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- [BLOCK 30] Macros: atomic save with .pending/.bak
+-- ------------------------------------------------------------
 local function mSave()
     local path = mPath(S.macroName)
     if not path then return false, "имя не задано" end
@@ -671,6 +796,9 @@ local function mSave()
     return true
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 31] Macros: stop recording
+-- ------------------------------------------------------------
 local function mStopRec(save)
     if not S.macroRec then return false, "не пишем" end
     local count = #S.macroActions
@@ -684,6 +812,9 @@ local function mStopRec(save)
     return true, count
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 32] Macros: load with fallback chain
+-- ------------------------------------------------------------
 local function mLoad(name)
     name = mSan(name or S.macroName)
     local path = mPath(name)
@@ -714,6 +845,9 @@ local function mLoad(name)
     return false, lastErr
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 33] Macros: list profiles
+-- ------------------------------------------------------------
 local function mList()
     if type(listfiles) ~= "function" then return {} end
     local seen, out = {}, {}
@@ -731,6 +865,11 @@ local function mList()
     return out
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 34] Macros: dispatch one action
+-- FIX: RequestTower answer -> SpawnTower 5th arg
+-- FIX: BaseUnit fallback via unitBase()
+-- ------------------------------------------------------------
 local function mDispatch(a)
     if not S.Running then return false, "stopped" end
     local kind = tostring(a.Type or "")
@@ -819,6 +958,10 @@ local function mDispatch(a)
     return true
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 35] Macros: play with disk auto-load
+-- FIX: if memory empty -> mLoad from disk
+-- ------------------------------------------------------------
 local function mPlay()
     if S.macroRec then return false, "сначала STOP REC" end
     if S.macroPlay then return false, "уже играет" end
@@ -875,6 +1018,9 @@ local function mPlay()
     return true, count
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 36] Macros: stop all
+-- ------------------------------------------------------------
 local function mStop()
     if S.macroRec then
         S.macroRec = false
@@ -884,6 +1030,9 @@ local function mStop()
     if S.macroPlay then S.macroPlay = false end
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 37] Macros: export
+-- ------------------------------------------------------------
 _G.__WL_Macros = {
     StartRec = mStartRec,
     StopRec  = mStopRec,
@@ -893,6 +1042,18 @@ _G.__WL_Macros = {
     Play     = mPlay,
     Stop     = mStop,
 }
+
+-- ============================================================
+-- >>> PART 4/7 END <<<
+-- ============================================================
+-- ============================================================
+-- WERTLAIDER 0.9.0 --- PART 5/7
+-- AutoSell | AutoControl | Mutators | AutoSummon | AutoCrates
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- [BLOCK 38] AutoSell
+-- ------------------------------------------------------------
 Stage("part2/10-autosell")
 Watchdog.register("autosell", function()
     while S.Running do
@@ -914,6 +1075,9 @@ Watchdog.register("autosell", function()
 end)
 Watchdog.spawn("autosell")
 
+-- ------------------------------------------------------------
+-- [BLOCK 39] AutoControl (skip/speed/vote/ability)
+-- ------------------------------------------------------------
 Stage("part2/11-autocontrol")
 Watchdog.register("autocontrol", function()
     while S.Running do
@@ -1001,6 +1165,9 @@ Watchdog.register("autocontrol", function()
 end)
 Watchdog.spawn("autocontrol")
 
+-- ------------------------------------------------------------
+-- [BLOCK 40] Mutators: catalog
+-- ------------------------------------------------------------
 Stage("part2/11.5-mutators")
 MUT_BASE = {
     TinySlop     = {Id="TinySlop",     Title="Tiny Slop",     Bad="Tiny enemies, +20% speed",      Good="+20% Rewards"},
@@ -1036,6 +1203,9 @@ local function mutBuildCatalog()
 end
 mutBuildCatalog()
 
+-- ------------------------------------------------------------
+-- [BLOCK 41] Mutators: choice picker
+-- ------------------------------------------------------------
 local function mutRewardScore(good)
     local s = tostring(good or ""):lower()
     local x = s:match("x%s*(%d+%.?%d*)")
@@ -1065,6 +1235,9 @@ local function mutPickChoice()
     return (byId.None and "None") or nil
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 42] Mutators: vote
+-- ------------------------------------------------------------
 local function mutTryVote(force)
     if not S.vmut or #mut.offer == 0 then return end
     if not force and (os.clock() - mut.offerAt) < 0.15 then return end
@@ -1081,6 +1254,9 @@ local function mutTryVote(force)
     pcall(function() R.SM:FireServer("Vote", choice) end)
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 43] Mutators: register offer
+-- ------------------------------------------------------------
 local function mutRegisterOffer(list, deadline, source)
     if type(list) ~= "table" then return end
     local clean = {}
@@ -1120,6 +1296,9 @@ local function mutRegisterOffer(list, deadline, source)
     task.defer(mutTryVote, true)
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 44] Mutators: GUI recovery
+-- ------------------------------------------------------------
 local function mutRecoverFromGui()
     local pg = LP:FindFirstChildOfClass("PlayerGui")
     local root = pg and pg:FindFirstChild("SlopMutatorGui")
@@ -1163,6 +1342,9 @@ local function mutRecoverFromGui()
     return true
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 45] Mutators: bind SlopMutator remote
+-- ------------------------------------------------------------
 local function mutBindRemote()
     local remote = R.SM
     if remote == mut.boundRemote and mut.connection then
@@ -1192,6 +1374,9 @@ local function mutBindRemote()
     end)
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 46] Mutators: main loop
+-- ------------------------------------------------------------
 Watchdog.register("mutators", function()
     while S.Running do
         task.wait(0.6)
@@ -1208,6 +1393,9 @@ Watchdog.register("mutators", function()
 end)
 Watchdog.spawn("mutators")
 
+-- ------------------------------------------------------------
+-- [BLOCK 47] Mutators: export
+-- ------------------------------------------------------------
 _G.__WL_Mutators = {
     register=mutRegisterOffer, pick=mutPickChoice, vote=mutTryVote,
     catalog=function() return mut.catalog end,
@@ -1216,6 +1404,9 @@ _G.__WL_Mutators = {
     base=MUT_BASE,
 }
 
+-- ------------------------------------------------------------
+-- [BLOCK 48] AutoSummon
+-- ------------------------------------------------------------
 Stage("part2/12-autosummon")
 Watchdog.register("autosummon", function()
     while S.Running do
@@ -1233,6 +1424,9 @@ Watchdog.register("autosummon", function()
 end)
 Watchdog.spawn("autosummon")
 
+-- ------------------------------------------------------------
+-- [BLOCK 49] AutoCrates
+-- ------------------------------------------------------------
 Stage("part2/13-autocrates")
 Watchdog.register("autocrates", function()
     while S.Running do
@@ -1249,6 +1443,19 @@ Watchdog.register("autocrates", function()
     end
 end)
 Watchdog.spawn("autocrates")
+
+-- ============================================================
+-- >>> PART 5/7 END <<<
+-- ============================================================
+-- ============================================================
+-- WERTLAIDER 0.9.0 --- PART 6/7
+-- AutoElevator | MatchEnd | AntiAFK | Performance | Webhook
+-- Autosave | Tracker-report
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- [BLOCK 50] AutoElevator
+-- ------------------------------------------------------------
 Stage("part2/14-autoelevator")
 local function getPadPos(elev)
     if not elev then return nil end
@@ -1352,6 +1559,9 @@ Watchdog.register("autoelevator", function()
 end)
 Watchdog.spawn("autoelevator")
 
+-- ------------------------------------------------------------
+-- [BLOCK 51] MatchEnd
+-- ------------------------------------------------------------
 Stage("part2/15-matchend")
 local function isEndScreen()
     local pg = LP:FindFirstChild("PlayerGui")
@@ -1392,6 +1602,9 @@ Watchdog.register("matchend", function()
 end)
 Watchdog.spawn("matchend")
 
+-- ------------------------------------------------------------
+-- [BLOCK 52] AntiAFK: autojump + walkaround
+-- ------------------------------------------------------------
 Stage("part2/16-antiafk")
 Watchdog.register("autojump", function()
     while S.Running do
@@ -1431,6 +1644,9 @@ Watchdog.register("walkaround", function()
 end)
 Watchdog.spawn("walkaround")
 
+-- ------------------------------------------------------------
+-- [BLOCK 53] Performance (fps boost / black screen / hide name)
+-- ------------------------------------------------------------
 Stage("part3/17-performance")
 local function fpsApply(on)
     if on then
@@ -1525,6 +1741,9 @@ local function hidApply(on)
     end
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 54] Webhook: send reports
+-- ------------------------------------------------------------
 Stage("part3/18-webhook")
 local function send(full)
     if not S.wh or S.url == "" or type(request) ~= "function" then return false end
@@ -1539,7 +1758,7 @@ local function send(full)
     return pcall(function()
         request({Url=S.url, Method="POST",
             Headers={["Content-Type"]="application/json"},
-            Body=HS:JSONEncode({username="wertlaider", embeds={{title="wertlaider · "..LP.Name, color=3968255, fields=f, footer={text="wertlaider"}, timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")}}})
+            Body=HS:JSONEncode({username="wertlaider", embeds={{title="wertlaider - "..LP.Name, color=3968255, fields=f, footer={text="wertlaider"}, timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")}}})
         })
     end)
 end
@@ -1581,11 +1800,14 @@ local function sendTracker()
     return pcall(function()
         request({Url=S.url, Method="POST",
             Headers={["Content-Type"]="application/json"},
-            Body=HS:JSONEncode({username="wertlaider", embeds={{title="Progress · "..LP.Name, color=3968255, fields=f, footer={text="wertlaider tracker"}, timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")}}})
+            Body=HS:JSONEncode({username="wertlaider", embeds={{title="Progress - "..LP.Name, color=3968255, fields=f, footer={text="wertlaider tracker"}, timestamp=os.date("!%Y-%m-%dT%H:%M:%SZ")}}})
         })
     end)
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 55] Autosave every 30s
+-- ------------------------------------------------------------
 Stage("part3/19-autosave")
 Watchdog.register("autosave", function()
     while S.Running do
@@ -1606,6 +1828,9 @@ Watchdog.register("autosave", function()
 end)
 Watchdog.spawn("autosave")
 
+-- ------------------------------------------------------------
+-- [BLOCK 56] Tracker report every 30 min
+-- ------------------------------------------------------------
 Stage("part3/20-tracker-report")
 Watchdog.register("tracker-report", function()
     while S.Running do
@@ -1621,6 +1846,18 @@ Watchdog.register("tracker-report", function()
     end
 end)
 Watchdog.spawn("tracker-report")
+
+-- ============================================================
+-- >>> PART 6/7 END <<<
+-- ============================================================
+-- ============================================================
+-- WERTLAIDER 0.9.0 --- PART 7/7
+-- UI: Match | Lobby | Misc | Webhook
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- [BLOCK 57] Create window
+-- ------------------------------------------------------------
 Stage("part3/21-ui")
 local W = RF:CreateWindow({
     Title="wertlaider", Author="wertlaider", Folder="Wertlaider2",
@@ -1630,6 +1867,9 @@ local W = RF:CreateWindow({
     OpenButton={Title="wertlaider", Enabled=true, Draggable=true, OnlyMobile=false}
 })
 
+-- ------------------------------------------------------------
+-- [BLOCK 58] Tab Match: vote section
+-- ------------------------------------------------------------
 local T1 = W:Tab({Title="Match", Icon="swords"})
 T1:Section({Title="Vote"})
 T1:Dropdown({Title="Map",
@@ -1677,6 +1917,9 @@ for _, id in ipairs(S.mutSel or {}) do
     end
 end
 
+-- ------------------------------------------------------------
+-- [BLOCK 59] Tab Match: macros section (toggles, not buttons)
+-- ------------------------------------------------------------
 T1:Section({Title="Macros"})
 T1:Input({Title="Macro Name", Placeholder="base1", Value=S.macroName,
     Callback=function(v) S.macroName = tostring(v):gsub("%s","") end})
@@ -1694,15 +1937,15 @@ T1:Dropdown({Title="Select Macro",
         if v == "(none)" then return end
         local ok, err = _G.__WL_Macros.Load(v)
         RF:Notify({Title="wertlaider",
-            Content= ok and ("Загружен: "..v.." ("..tostring(#S.macroActions)..")")
-                          or ("Ошибка: "..tostring(err)), Duration=3})
+            Content= ok and ("Loaded: "..v.." ("..tostring(#S.macroActions)..")")
+                          or ("Error: "..tostring(err)), Duration=3})
     end})
 
 local uiSuppress = false
 local recToggle, playToggle
 
 recToggle = T1:Toggle({Title="Record",
-    Desc="ВКЛ — писать, ВЫКЛ — сохранить и остановить",
+    Desc="ON = record | OFF = save and stop",
     Value=false,
     Callback=function(v)
         if uiSuppress then return end
@@ -1721,7 +1964,7 @@ recToggle = T1:Toggle({Title="Record",
             local ok, err = _G.__WL_Macros.StopRec(true)
             if ok then
                 RF:Notify({Title="wertlaider",
-                    Content="Сохранено: "..tostring(#S.macroActions).." действий", Duration=2})
+                    Content="Saved: "..tostring(#S.macroActions).." actions", Duration=2})
             else
                 RF:Notify({Title="wertlaider", Content="Save fail: "..tostring(err), Duration=3})
             end
@@ -1729,7 +1972,7 @@ recToggle = T1:Toggle({Title="Record",
     end})
 
 playToggle = T1:Toggle({Title="Play",
-    Desc="ВКЛ — играть макрос, ВЫКЛ — стоп",
+    Desc="ON = play macro | OFF = stop",
     Value=false,
     Callback=function(v)
         if uiSuppress then return end
@@ -1743,14 +1986,17 @@ playToggle = T1:Toggle({Title="Play",
                 uiSuppress = true; playToggle:Set(false); uiSuppress = false
                 RF:Notify({Title="wertlaider", Content="PLAY fail: "..tostring(err), Duration=3})
             else
-                RF:Notify({Title="wertlaider", Content="Играем", Duration=2})
+                RF:Notify({Title="wertlaider", Content="Playing", Duration=2})
             end
         else
             _G.__WL_Macros.Stop()
-            RF:Notify({Title="wertlaider", Content="Стоп", Duration=2})
+            RF:Notify({Title="wertlaider", Content="Stopped", Duration=2})
         end
     end})
 
+-- ------------------------------------------------------------
+-- [BLOCK 60] Tab Match: control / endless / match end
+-- ------------------------------------------------------------
 T1:Section({Title="Control"})
 T1:Toggle({Title="Auto Skip", Value=S.sk, Callback=function(v) S.sk = v end})
 T1:Toggle({Title="Auto Speed", Value=S.sp, Callback=function(v) S.sp = v end})
@@ -1773,6 +2019,9 @@ T1:Dropdown({Title="After Match",
         else S.endAct = "None" end
     end})
 
+-- ------------------------------------------------------------
+-- [BLOCK 61] Tab Lobby
+-- ------------------------------------------------------------
 local T2 = W:Tab({Title="Lobby", Icon="door-open"})
 T2:Section({Title="Play"})
 T2:Toggle({Title="Auto Elevator", Value=S.lobby, Callback=function(v) S.lobby = v end})
@@ -1796,6 +2045,9 @@ T2:Button({Title="Roll Now", Callback=function()
     if R.Open then pcall(function() R.Open:InvokeServer(S.crate, S.crateA) end) end
 end})
 
+-- ------------------------------------------------------------
+-- [BLOCK 62] Tab Misc
+-- ------------------------------------------------------------
 local T3 = W:Tab({Title="Misc", Icon="tool"})
 T3:Section({Title="Anti-Macro"})
 T3:Toggle({Title="Auto Anti-Macro", Value=S.am, Callback=function(v) S.am = v end})
@@ -1809,6 +2061,9 @@ T3:Toggle({Title="FPS Boost", Value=S.fps, Callback=function(v) S.fps = v; fpsAp
 T3:Toggle({Title="Black Screen", Value=S.blk, Callback=function(v) S.blk = v; bsApply(v) end})
 T3:Toggle({Title="Hide Name", Value=S.hid, Callback=function(v) S.hid = v; hidApply(v) end})
 
+-- ------------------------------------------------------------
+-- [BLOCK 63] Tab Webhook
+-- ------------------------------------------------------------
 local T4 = W:Tab({Title="Webhook", Icon="radio"})
 T4:Section({Title="Discord"})
 T4:Input({Title="URL", Placeholder="https://...", Value=S.url, Callback=function(v) S.url = v end})
@@ -1816,37 +2071,40 @@ T4:Toggle({Title="Enable", Value=S.wh, Callback=function(v) S.wh = v end})
 T4:Section({Title="Reports"})
 T4:Button({Title="Send Cash/Gems", Callback=function()
     local ok = send(false)
-    RF:Notify({Title="wertlaider", Content= ok and "Отправлено" or "Ошибка", Duration=2})
+    RF:Notify({Title="wertlaider", Content= ok and "Sent" or "Error", Duration=2})
 end})
 T4:Button({Title="Send Full", Callback=function()
     local ok = send(true)
-    RF:Notify({Title="wertlaider", Content= ok and "Full отправлен" or "Ошибка", Duration=2})
+    RF:Notify({Title="wertlaider", Content= ok and "Full sent" or "Error", Duration=2})
 end})
 T4:Button({Title="Send Progress Tracker", Callback=function()
     local ok = sendTracker()
-    RF:Notify({Title="wertlaider", Content= ok and "Трекер отправлен" or "Ошибка", Duration=3})
+    RF:Notify({Title="wertlaider", Content= ok and "Tracker sent" or "Error", Duration=3})
 end})
 T4:Section({Title="Config"})
 T4:Button({Title="Save Config Now", Callback=function()
     saveCfg(S)
-    RF:Notify({Title="wertlaider", Content="Настройки сохранены", Duration=2})
+    RF:Notify({Title="wertlaider", Content="Config saved", Duration=2})
 end})
 T4:Button({Title="Save URL to file", Callback=function()
     if S.url ~= "" then
         local ok = pcall(function() writefile("wl_webhook.txt", S.url) end)
-        RF:Notify({Title="wertlaider", Content= ok and "URL сохранён" or "Ошибка", Duration=2})
+        RF:Notify({Title="wertlaider", Content= ok and "URL saved" or "Error", Duration=2})
     end
 end})
 T4:Button({Title="Reset Tracker", Callback=function()
     initTracker()
-    RF:Notify({Title="wertlaider", Content="Трекер сброшен", Duration=2})
+    RF:Notify({Title="wertlaider", Content="Tracker reset", Duration=2})
 end})
 T4:Button({Title="Reset Config", Callback=function()
     pcall(function() delfile(SAVE_FILE) end)
-    RF:Notify({Title="wertlaider", Content="Конфиг удалён, перезапусти", Duration=3})
+    RF:Notify({Title="wertlaider", Content="Config deleted, restart", Duration=3})
 end})
 
-RF:Notify({Title="wertlaider", Content="Загружен", Duration=3})
+-- ------------------------------------------------------------
+-- [BLOCK 64] Startup notification + kill switch
+-- ------------------------------------------------------------
+RF:Notify({Title="wertlaider", Content="Loaded", Duration=3})
 
 _G.__WL_Stop = function()
     local g = _G.__WL
@@ -1857,3 +2115,9 @@ _G.__WL_Stop = function()
     if g.S.__wlStop then return end
     g.S.__wlStop = true
 end
+
+-- ============================================================
+-- >>> PART 7/7 END <<<
+-- ============================================================
+-- >>> FULL PROJECT COMPLETE <<<
+-- ============================================================
