@@ -1686,3 +1686,206 @@ Watchdog.register("tracker-report", function()
     end
 end)
 Watchdog.spawn("tracker-report")
+Stage("part3/21-ui")
+local W = RF:CreateWindow({
+    Title = "wertlaider",
+    Author = "wertlaider",
+    Folder = "Wertlaider2",
+    Icon = "swords",
+    Theme = "Sky",
+    Size = UDim2.fromOffset(540, 440),
+    Transparent = true,
+    HideSearchBar = true,
+    NewElements = true,
+    ToggleKey = Enum.KeyCode.RightShift,
+    OpenButton = { Title="wertlaider", Enabled=true, Draggable=true, OnlyMobile=false }
+})
+
+local T1 = W:Tab({Title = "Match", Icon = "swords"})
+T1:Section({Title = "Vote"})
+T1:Dropdown({
+    Title="Map",
+    Values={"BackroomsEndless","Base","Blood Moon","BrainrotEndless","Cooking Stove","Crossroads","Day","Desert","Doomspire","Dungeon","FairyEndless","GardenEndless","Gold Base","Happy Home","Kitchen Table","KitchenEndless","Level 1","Level 2","Level 3","Level0","Level94","Night","Night Base","NightPlot","Plot","Poolrooms","Raid","RetroEndless","RichPlot","Ruined City","Summer Raid","The Fridge","Toilet City","ToiletEndless"},
+    Value=S.mapV, Multi=false, SearchBarEnabled=true,
+    Callback=function(v) S.mapV = v end
+})
+T1:Dropdown({Title="Complication", Values={"Normal","Hard","Nightmare","Chaos"}, Value=S.compV, Multi=false, Callback=function(v) S.compV = v end})
+T1:Toggle({Title="Auto Vote Map", Value=S.vm, Callback=function(v) S.vm = v end})
+T1:Toggle({Title="Auto Vote Complication", Value=S.vc, Callback=function(v) S.vc = v end})
+T1:Toggle({Title="Auto Vote Mutator", Value=S.vmut, Callback=function(v)
+    S.vmut = v
+    if v and _G.__WL_Mutators then task.defer(_G.__WL_Mutators.vote, true) end
+end})
+T1:Dropdown({Title="Mutator Auto Pick", Desc="Priority / Highest Reward / No Mutator",
+    Values={"Priority","Highest Reward","No Mutator"}, Value=S.mutPick, Multi=false,
+    Callback=function(v) S.mutPick = v; if _G.__WL_Mutators then task.defer(_G.__WL_Mutators.vote, true) end end})
+T1:Dropdown({Title="Preferred Mutators", Desc="Select several, then set priorities below",
+    Values=(function()
+        local t = {}
+        for id,_ in pairs(MUT_BASE) do if id ~= "None" then table.insert(t, id) end end
+        table.sort(t); return t
+    end)(),
+    Value=S.mutSel, Multi=true, AllowNone=true, SearchBarEnabled=true,
+    Callback=function(v)
+        local out, seen = {}, {}
+        for _, id in pairs(v or {}) do
+            local s = tostring(id or "")
+            if s ~= "" and not seen[s] and MUT_BASE[s] then seen[s] = true; table.insert(out, s) end
+        end
+        S.mutSel = out
+        for i, id in ipairs(out) do
+            if S.mutPri[id] == nil then S.mutPri[id] = i end
+        end
+        if _G.__WL_Mutators then task.defer(_G.__WL_Mutators.vote, true) end
+    end})
+for _, id in ipairs(S.mutSel or {}) do
+    local base = MUT_BASE[id]
+    if base then
+        T1:Slider({Title=base.Title.." priority", Desc=base.Bad.." | "..base.Good,
+            Step=1, Value={Min=1, Max=20, Default=S.mutPri[id] or 20},
+            Callback=function(v)
+                S.mutPri[id] = math.clamp(math.floor(tonumber(v) or 20), 1, 20)
+                if _G.__WL_Mutators then task.defer(_G.__WL_Mutators.vote, true) end
+            end})
+    end
+end
+
+T1:Section({Title = "Macros"})
+T1:Input({Title="Macro Name", Placeholder="base1", Value=S.macroName,
+    Callback=function(v) S.macroName = tostring(v):gsub("%s","") end})
+T1:Slider({Title="Playback Speed", Step=0.25,
+    Value={Min=0.25, Max=4, Default=S.macroSpeed},
+    Callback=function(v) S.macroSpeed = tonumber(v) or 1 end})
+T1:Button({Title="REC (start recording)", Callback=function()
+    local ok, err = _G.__WL_Macros.StartRec(S.macroName)
+    RF:Notify({Title="wertlaider", Content= ok and ("REC: "..S.macroName) or ("Ошибка: "..tostring(err)), Duration=3})
+end})
+T1:Button({Title="STOP REC (auto-save)", Callback=function()
+    local ok, err = _G.__WL_Macros.StopRec(true)
+    RF:Notify({Title="wertlaider", Content= ok and ("Стоп. Сохранено "..tostring(#S.macroActions).." действий") or ("Ошибка: "..tostring(err)), Duration=3})
+end})
+T1:Button({Title="PLAY", Callback=function()
+    local ok, err = _G.__WL_Macros.Play()
+    RF:Notify({Title="wertlaider", Content= ok and "Играем макрос" or ("Ошибка: "..tostring(err)), Duration=3})
+end})
+T1:Button({Title="STOP PLAY", Callback=function()
+    _G.__WL_Macros.Stop()
+    RF:Notify({Title="wertlaider", Content="Плейбек остановлен", Duration=2})
+end})
+T1:Button({Title="LOAD", Callback=function()
+    local ok, err = _G.__WL_Macros.Load(S.macroName)
+    RF:Notify({Title="wertlaider", Content= ok and ("Загружен: "..S.macroName.." ("..tostring(#S.macroActions)..")") or ("Ошибка: "..tostring(err)), Duration=3})
+end})
+T1:Button({Title="SAVE (manual)", Callback=function()
+    local ok, err = _G.__WL_Macros.Save()
+    RF:Notify({Title="wertlaider", Content= ok and "Сохранено" or ("Ошибка: "..tostring(err)), Duration=2})
+end})
+
+T1:Section({Title = "Control"})
+T1:Toggle({Title="Auto Skip", Value=S.sk, Callback=function(v) S.sk = v end})
+T1:Toggle({Title="Auto Speed", Value=S.sp, Callback=function(v) S.sp = v end})
+T1:Slider({Title="Speed", Step=1, Value={Min=1, Max=5, Default=S.sv}, Callback=function(v) S.sv = v end})
+T1:Toggle({Title="Auto Ability", Value=S.ab, Callback=function(v) S.ab = v end})
+
+T1:Section({Title = "Endless"})
+T1:Toggle({Title="Auto Sell All", Value=S.sel, Callback=function(v) S.sel = v end})
+T1:Slider({Title="Sell At Wave", Step=10, Value={Min=10, Max=500, Default=S.sellW}, Callback=function(v) S.sellW = v end})
+
+T1:Section({Title = "Match End"})
+T1:Dropdown({
+    Title="After Match",
+    Values={"Off","Replay","New Map","Return Lobby"},
+    Value=(S.endAct=="None" and "Off" or (S.endAct=="Lobby" and "Return Lobby" or S.endAct)),
+    Multi=false,
+    Callback=function(v)
+        if v=="Replay" then S.endAct = "Replay"
+        elseif v=="New Map" then S.endAct = "New Map"
+        elseif v=="Return Lobby" then S.endAct = "Lobby"
+        else S.endAct = "None" end
+    end
+})
+
+local T2 = W:Tab({Title="Lobby", Icon="door-open"})
+T2:Section({Title="Play"})
+T2:Toggle({Title="Auto Elevator", Value=S.lobby, Callback=function(v) S.lobby = v end})
+T2:Dropdown({Title="Elevator Type", Desc="Auto / Normal / Raid",
+    Values={"Auto","Normal","Raid"}, Value=S.elevType, Multi=false,
+    Callback=function(v) S.elevType = v end})
+
+T2:Section({Title="Summon"})
+T2:Toggle({Title="Enable", Value=S.sum, Callback=function(v) S.sum = v end})
+T2:Dropdown({Title="Currency", Values={"Cash","Gem"}, Value=S.sumCur, Multi=false, Callback=function(v) S.sumCur = v end})
+T2:Dropdown({Title="Amount", Values={"x1","x10","x50"}, Value="x"..tostring(S.sumA), Multi=false, Callback=function(v) S.sumA = tonumber(v:match("%d+")) or 10 end})
+T2:Slider({Title="Delay", Step=0.5, Value={Min=0.5, Max=10, Default=S.sumD}, Callback=function(v) S.sumD = v end})
+
+T2:Section({Title="Crates"})
+T2:Dropdown({Title="Crate", Values={"Still Life Crate","Garden Crate","Alien Crate","Space Crate","Slopbux Crate 2"}, Value=S.crate, Multi=false, Callback=function(v) S.crate = v end})
+T2:Dropdown({Title="Amount", Values={"x1","x3","x10","x25","x50"}, Value="x"..tostring(S.crateA), Multi=false, Callback=function(v) S.crateA = tonumber(v:match("%d+")) or 1 end})
+T2:Toggle({Title="Auto Buy", Value=S.buy, Callback=function(v) S.buy = v end})
+T2:Toggle({Title="Auto Open", Value=S.opn, Callback=function(v) S.opn = v end})
+T2:Slider({Title="Delay", Step=0.5, Value={Min=0.5, Max=10, Default=S.crateD}, Callback=function(v) S.crateD = v end})
+T2:Button({Title="Roll Now", Callback=function()
+    if R.Buy then pcall(function() R.Buy:FireServer(S.crate, S.crateA) end) end
+    task.wait(0.5)
+    if R.Open then pcall(function() R.Open:InvokeServer(S.crate, S.crateA) end) end
+end})
+
+local T3 = W:Tab({Title="Misc", Icon="tool"})
+T3:Section({Title="Anti-Macro"})
+T3:Toggle({Title="Auto Anti-Macro", Value=S.am, Callback=function(v) S.am = v end})
+T3:Slider({Title="Delay Min", Step=0.1, Value={Min=0.1, Max=3, Default=S.am1}, Callback=function(v) S.am1 = v end})
+T3:Slider({Title="Delay Max", Step=0.1, Value={Min=0.2, Max=5, Default=S.am2}, Callback=function(v) S.am2 = v end})
+
+T3:Section({Title="Anti-AFK"})
+T3:Toggle({Title="Auto Jump", Value=S.jump, Callback=function(v) S.jump = v end})
+T3:Toggle({Title="Walk Around", Value=S.walk, Callback=function(v) S.walk = v end})
+
+T3:Section({Title="Performance"})
+T3:Toggle({Title="FPS Boost", Value=S.fps, Callback=function(v) S.fps = v; fpsApply(v) end})
+T3:Toggle({Title="Black Screen", Value=S.blk, Callback=function(v) S.blk = v; bsApply(v) end})
+T3:Toggle({Title="Hide Name", Value=S.hid, Callback=function(v) S.hid = v; hidApply(v) end})
+
+local T4 = W:Tab({Title="Webhook", Icon="radio"})
+T4:Section({Title="Discord"})
+T4:Input({Title="URL", Placeholder="https://...", Value=S.url, Callback=function(v) S.url = v end})
+T4:Toggle({Title="Enable", Value=S.wh, Callback=function(v) S.wh = v end})
+
+T4:Section({Title="Reports"})
+T4:Button({Title="Send Cash/Gems", Callback=function()
+    local ok = send(false)
+    RF:Notify({Title="wertlaider", Content= ok and "Отправлено" or "Ошибка", Duration=2})
+end})
+T4:Button({Title="Send Full", Callback=function()
+    local ok = send(true)
+    RF:Notify({Title="wertlaider", Content= ok and "Full отправлен" or "Ошибка", Duration=2})
+end})
+T4:Button({Title="Send Progress Tracker", Callback=function()
+    local ok = sendTracker()
+    RF:Notify({Title="wertlaider", Content= ok and "Трекер отправлен" or "Ошибка", Duration=3})
+end})
+
+T4:Section({Title="Config"})
+T4:Button({Title="Save Config Now", Callback=function()
+    saveCfg(S)
+    RF:Notify({Title="wertlaider", Content="Настройки сохранены", Duration=2})
+end})
+T4:Button({Title="Save URL to file", Callback=function()
+    if S.url ~= "" then
+        local ok = pcall(function() writefile("wl_webhook.txt", S.url) end)
+        RF:Notify({Title="wertlaider", Content= ok and "URL сохранён" or "Ошибка", Duration=2})
+    end
+end})
+T4:Button({Title="Reset Tracker", Callback=function()
+    initTracker()
+    RF:Notify({Title="wertlaider", Content="Трекер сброшен", Duration=2})
+end})
+T4:Button({Title="Reset Config", Callback=function()
+    pcall(function() delfile(SAVE_FILE) end)
+    RF:Notify({Title="wertlaider", Content="Конфиг удалён, перезапусти", Duration=3})
+end})
+
+RF:Notify({Title="wertlaider", Content="Загружен", Duration=3})
+traceLog("session", "=== hub ready ===")
+Log("stage", "part3-done")
+
+-- PART 6 END — FULL PROJECT COMPLETE
