@@ -897,12 +897,12 @@ local function mDispatch(a)
         task.wait(0.05)
 
         local jx = (math.random() - 0.5) * 0.4
-        local jz = (math.random() - 0.5) * 0.4
-        local pos = cf.Position + Vector3.new(jx, 0, jz)
+local jz = (math.random() - 0.5) * 0.4
+local jitteredCf = CFrame.new(cf.Position + Vector3.new(jx, 0, jz)) * cf.Rotation
 
-        local ok, res = pcall(function()
-            return R.Spawn:InvokeServer(base, pos, false, unit, reqData)
-        end)
+local ok, res = pcall(function()
+    return R.Spawn:InvokeServer(base, jitteredCf, false, unit, reqData)
+end)
         if not ok then return false, "Spawn error: " .. tostring(res) end
         if res == false then return false, "SpawnTower rejected" end
         task.wait(0.3)
