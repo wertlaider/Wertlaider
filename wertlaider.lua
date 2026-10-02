@@ -1,8 +1,7 @@
--- ══════════════════════════════════════════════════════════════════
+-- 
 -- wertlaider 0.9.0 — clean build (no disk logs, no leak)
 -- Часть 1/6: Logger-stub · UI-load · Core · Remotes · Confirm
--- ══════════════════════════════════════════════════════════════════
-
+-- 
 local function Log(tag, ...) end
 local function Stage(name) end
 
@@ -347,9 +346,9 @@ _G.__WL = {
 }
 
 -- PART 2 END
--- ══════════════════════════════════════════════════════════════════
+-- 
 -- Часть 3/6 — AntiMacro · Macros (start/record/attach)
--- ══════════════════════════════════════════════════════════════════
+-- 
 
 local G = _G.__WL
 if not G then error("part1 не запущена") end
@@ -612,9 +611,9 @@ local function mStartRec(name)
 end
 
 -- PART 3 END
--- -- ══════════════════════════════════════════════════════════════════
+-- -- 
 -- Часть 4/6 — Macros (save / load / list / dispatch / play / stop)
--- ══════════════════════════════════════════════════════════════════
+-- 
 
 local function mSave()
     local path = mPath(S.macroName)
@@ -850,11 +849,10 @@ _G.__WL_Macros = {
 }
 
 -- PART 4 END
- ══════════════════════════════════════════════════════════════════
+ 
 -- Часть 5/6 — AutoSell · AutoControl · Mutators ·
 --             AutoSummon · AutoCrates
--- ══════════════════════════════════════════════════════════════════
-
+-- 
 Stage("part2/10-autosell")
 Watchdog.register("autosell", function()
     while S.Running do
@@ -1217,11 +1215,10 @@ end)
 Watchdog.spawn("autocrates")
 
 -- PART 5 END
--- ══════════════════════════════════════════════════════════════════
+-- 
 -- Часть 6а/6 — AutoElevator · MatchEnd · AntiAFK ·
 --                Performance · Webhook · Autosave · Tracker-report
--- ══════════════════════════════════════════════════════════════════
-
+-- 
 Stage("part2/14-autoelevator")
 local function getPadPos(elev)
     if not elev then return nil end
@@ -1554,10 +1551,9 @@ end)
 Watchdog.spawn("tracker-report")
 
 -- PART 6a END
--- ══════════════════════════════════════════════════════════════════
+-- 
 -- Часть 6б/6 — UI (Match · Lobby · Misc · Webhook)
--- ══════════════════════════════════════════════════════════════════
-
+-- 
 Stage("part3/21-ui")
 local W = RF:CreateWindow({
     Title="wertlaider", Author="wertlaider", Folder="Wertlaider2",
@@ -1786,6 +1782,4 @@ end})
 RF:Notify({Title="wertlaider", Content="Загружен", Duration=3})
 
 -- PART 6b END
--- ══════════════════════════════════════════════════════════════════
--- FULL PROJECT COMPLETE
--- ══════════════════════════════════════════════════════════════════
+-- 
