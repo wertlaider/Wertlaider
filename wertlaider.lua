@@ -199,7 +199,7 @@ local SAVE_KEYS = {
         "elevType","macroName","macroSpeed","macroPlay",
     "ab","abWave","abWaveOn","abBoss","abDelay"
 }
-}
+
 
 local function loadUrl()
     local ok, c = pcall(function() return readfile("wl_webhook.txt") end)
