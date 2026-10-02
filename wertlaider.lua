@@ -33,7 +33,7 @@ local L  = game:GetService("Lighting")
 local R2 = game:GetService("RunService")
 local LP = P.LocalPlayer
 
-local DEF_URL   = "https://discord.com/api/webhooks/1546141287965524079/qsmQUdBUsxUZraeCYoq4iz2pawRdhNZaydtpUnZDw5grST93sTN3-p2Y4r7YdyezKVhQ"
+local DEF_URL   = "" -- Set your own webhook URL in the UI or wl_webhook.txt
 local SAVE_FILE = "wertlaider_cfg.json"
 
 Stage("part1/3-remotes")
@@ -346,10 +346,6 @@ _G.__WL = {
 }
 
 -- PART 2 END
--- 
--- Часть 3/6 — AntiMacro · Macros (start/record/attach)
--- 
-
 local G = _G.__WL
 if not G then error("part1 не запущена") end
 local P, RS, WS, HS, L, R2, LP = G.P, G.RS, G.WS, G.HS, G.L, G.R2, G.LP
@@ -425,21 +421,27 @@ local function clickButton(btn)
 end
 
 local lastCheckRemote = nil
+local lastCheckConnection = nil
 local function bindCheck()
     local AM2 = ev and ev:FindFirstChild("AntiMacro")
     local newAC = AM2 and AM2:FindFirstChild("Check")
     if newAC == lastCheckRemote then return end
-    if _R_orig.AC and _R_orig.AC ~= newAC then
-        pcall(function() _R_orig.AC.OnClientEvent:Disconnect() end)
+    if lastCheckConnection then
+        pcall(function() lastCheckConnection:Disconnect() end)
+        lastCheckConnection = nil
     end
-    R.AC = newAC
-    R.AR = AM2 and AM2:FindFirstChild("Respond")
+    R.AC = (newAC and newAC:IsA("RemoteEvent")) and newAC or nil
+    local newAR = AM2 and AM2:FindFirstChild("Respond")
+    R.AR = (newAR and newAR:IsA("RemoteEvent")) and newAR or nil
     lastCheckRemote = newAC
-    if newAC then
-        newAC.OnClientEvent:Connect(function(...)
-            local u = uu(table.pack(...))
-            if u then S.tok = u; S.tokT = os.clock() end
+    if R.AC then
+        local ok, conn = pcall(function()
+            return R.AC.OnClientEvent:Connect(function(...)
+                local u = uu(table.pack(...))
+                if u then S.tok = u; S.tokT = os.clock() end
+            end)
         end)
+        if ok then lastCheckConnection = conn end
     end
 end
 
@@ -456,7 +458,9 @@ Watchdog.register("antimacro", function()
             if tok and (os.clock() - S.tokT) > 35 then S.tok = nil; tok = nil end
             if tok and btnVis and R.AR then
                 S.busy = true
-                task.wait(S.am1 + math.random() * (S.am2 - S.am1))
+                local dmin = math.min(tonumber(S.am1) or 0.4, tonumber(S.am2) or 1.0)
+                local dmax = math.max(tonumber(S.am1) or 0.4, tonumber(S.am2) or 1.0)
+                task.wait(dmin + math.random() * (dmax - dmin))
                 if S.am and S.tok == tok then
                     pcall(function() R.AR:FireServer(tok) end)
                     S.tok = nil
@@ -611,10 +615,6 @@ local function mStartRec(name)
 end
 
 -- PART 3 END
--- -- 
--- Часть 4/6 — Macros (save / load / list / dispatch / play / stop)
--- 
-
 local function mSave()
     local path = mPath(S.macroName)
     if not path then return false, "имя не задано" end
@@ -627,19 +627,16 @@ local function mSave()
     local ok, encoded = pcall(function() return HS:JSONEncode(payload) end)
     if not ok then return false, "encode fail" end
 
-    -- 1. Пишем в .pending
     local pendingPath = path .. ".pending"
     local w1 = pcall(writefile, pendingPath, encoded)
     if not w1 then return false, "pending write fail" end
 
-    -- 2. Верифицируем .pending
     local vok, vdata = pcall(function() return HS:JSONDecode(readfile(pendingPath)) end)
     if not vok or type(vdata) ~= "table" or tonumber(vdata.actionCount) ~= #S.macroActions then
         pcall(function() delfile(pendingPath) end)
         return false, "pending verify fail"
     end
 
-    -- 3. Если основной файл существует — делаем .bak
     local bakPath = path .. ".bak"
     if isfile(path) then
         local oldOk, oldContent = pcall(function() return readfile(path) end)
@@ -648,17 +645,14 @@ local function mSave()
         end
     end
 
-    -- 4. Пишем финальный файл
     local w2 = pcall(writefile, path, encoded)
     if not w2 then return false, "final write fail (backup saved)" end
 
-    -- 5. Верифицируем финал
     local fok, fdata = pcall(function() return HS:JSONDecode(readfile(path)) end)
     if not fok or type(fdata) ~= "table" or tonumber(fdata.actionCount) ~= #S.macroActions then
         return false, "final verify fail (backup preserved)"
     end
 
-    -- 6. Убираем .pending
     pcall(function() delfile(pendingPath) end)
 
     return true
@@ -682,7 +676,6 @@ local function mLoad(name)
     local path = mPath(name)
     if not path then return false, "имя не задано" end
 
-    -- пробуем основной, потом .bak, потом .pending
     local candidates = { path, path .. ".bak", path .. ".pending" }
     local lastErr = "файл не найден"
     local found = false
@@ -737,6 +730,10 @@ local function mDispatch(a)
             if wv() >= (tonumber(a.Wave) or 0) and readVal("Cash") >= (tonumber(a.Cost) or 0) then break end
             task.wait(0.1)
         end
+        if not S.macroPlay then return false, "stopped" end
+        if wv() < (tonumber(a.Wave) or 0) or readVal("Cash") < (tonumber(a.Cost) or 0) then
+            return false, "place prerequisites timeout"
+        end
         local before = {}
         for _, v in ipairs(mn()) do before[v] = true end
         pcall(function() R.Req:InvokeServer({unit, base}, false, true) end)
@@ -787,7 +784,6 @@ local function mPlay()
     if S.macroRec then return false, "сначала STOP REC" end
     if S.macroPlay then return false, "уже играет" end
 
-    -- если в памяти пусто — пробуем с диска
     if #S.macroActions == 0 and S.macroName ~= "" then
         local ok, err = mLoad(S.macroName)
         if not ok then
@@ -811,19 +807,30 @@ local function mPlay()
     local count = #snap
 
     task.spawn(function()
-        local t0 = os.clock()
-        local speed = tonumber(S.macroSpeed) or 1
-        if speed <= 0 then speed = 1 end
-        for i, a in ipairs(snap) do
-            if not S.macroPlay or not S.Running then break end
-            local target = (tonumber(a.Time) or 0) / speed
-            target = target * (0.85 + math.random() * 0.3)
-            local waitT = target - (os.clock() - t0)
-            if waitT > 0 then task.wait(waitT) end
-            mDispatch(a)
-            if i % 10 == 0 then task.wait() end
-        end
+        local okRun, errRun = pcall(function()
+            local t0 = os.clock()
+            local speed = tonumber(S.macroSpeed) or 1
+            if speed <= 0 then speed = 1 end
+            for i, a in ipairs(snap) do
+                if not S.macroPlay or not S.Running then break end
+                if type(a) ~= "table" then
+                    error("invalid action #" .. tostring(i))
+                end
+                local target = (tonumber(a.Time) or 0) / speed
+                target = target * (0.85 + math.random() * 0.3)
+                local waitT = target - (os.clock() - t0)
+                if waitT > 0 then task.wait(waitT) end
+                local okAction, errAction = mDispatch(a)
+                if not okAction then
+                    error("action #" .. tostring(i) .. ": " .. tostring(errAction))
+                end
+                if i % 10 == 0 then task.wait() end
+            end
+        end)
         S.macroPlay = false
+        if not okRun and S.Running then
+            S.__macroLastError = tostring(errRun)
+        end
     end)
 
     return true, count
@@ -849,10 +856,6 @@ _G.__WL_Macros = {
 }
 
 -- PART 4 END
- 
--- Часть 5/6 — AutoSell · AutoControl · Mutators ·
---             AutoSummon · AutoCrates
--- 
 Stage("part2/10-autosell")
 Watchdog.register("autosell", function()
     while S.Running do
@@ -1215,10 +1218,6 @@ end)
 Watchdog.spawn("autocrates")
 
 -- PART 5 END
--- 
--- Часть 6а/6 — AutoElevator · MatchEnd · AntiAFK ·
---                Performance · Webhook · Autosave · Tracker-report
--- 
 Stage("part2/14-autoelevator")
 local function getPadPos(elev)
     if not elev then return nil end
@@ -1404,6 +1403,10 @@ Watchdog.spawn("walkaround")
 Stage("part3/17-performance")
 local function fpsApply(on)
     if on then
+        if S.__globalShadowsOriginal == nil then
+            local ok, value = pcall(function() return L.GlobalShadows end)
+            if ok then S.__globalShadowsOriginal = value end
+        end
         for _, o in ipairs(WS:GetDescendants()) do
             if o:IsA("ParticleEmitter") or o:IsA("Trail") or o:IsA("Beam")
                or o:IsA("Smoke") or o:IsA("Fire") or o:IsA("Sparkles") then
@@ -1417,7 +1420,11 @@ local function fpsApply(on)
     else
         for o, v in pairs(S.fpsO) do pcall(function() if o.Parent then o.Enabled = v end end) end
         S.fpsO = setmetatable({},{__mode="k"})
-        pcall(function() L.GlobalShadows = true end)
+        if S.__globalShadowsOriginal ~= nil then
+            local original = S.__globalShadowsOriginal
+            pcall(function() L.GlobalShadows = original end)
+            S.__globalShadowsOriginal = nil
+        end
     end
 end
 
@@ -1448,21 +1455,41 @@ local function bsApply(on)
     end
 end
 
+local hidOriginal = setmetatable({}, {__mode="k"})
 local function hidApply(on)
-    if on then
-        local function h(o)
-            if o:IsA("Humanoid") then
-                pcall(function()
-                    o.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-                    o.NameDisplayDistance = 0
-                    o.HealthDisplayDistance = 0
+    local function applyHumanoid(o)
+        if not o:IsA("Humanoid") then return end
+        if on then
+            if not hidOriginal[o] then
+                local ok, snapshot = pcall(function()
+                    return {
+                        DisplayDistanceType = o.DisplayDistanceType,
+                        NameDisplayDistance = o.NameDisplayDistance,
+                        HealthDisplayDistance = o.HealthDisplayDistance,
+                    }
                 end)
+                if ok then hidOriginal[o] = snapshot end
+            end
+            pcall(function()
+                o.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+                o.NameDisplayDistance = 0
+                o.HealthDisplayDistance = 0
+            end)
+        else
+            local snapshot = hidOriginal[o]
+            if snapshot then
+                pcall(function()
+                    o.DisplayDistanceType = snapshot.DisplayDistanceType
+                    o.NameDisplayDistance = snapshot.NameDisplayDistance
+                    o.HealthDisplayDistance = snapshot.HealthDisplayDistance
+                end)
+                hidOriginal[o] = nil
             end
         end
-        for _, pl in ipairs(P:GetPlayers()) do
-            if pl.Character then
-                for _, o in ipairs(pl.Character:GetDescendants()) do h(o) end
-            end
+    end
+    for _, pl in ipairs(P:GetPlayers()) do
+        if pl.Character then
+            for _, o in ipairs(pl.Character:GetDescendants()) do applyHumanoid(o) end
         end
     end
 end
@@ -1491,9 +1518,16 @@ local function progressReport()
     local curGems = readVal("Gems")
     local curMats = getMaterials()
     local matDelta = {}
+    local seen = {}
     for name, count in pairs(curMats) do
         local start = S.tracker.startMaterials[name] or 0
         matDelta[name] = count - start
+        seen[name] = true
+    end
+    for name, start in pairs(S.tracker.startMaterials) do
+        if not seen[name] then
+            matDelta[name] = 0 - start
+        end
     end
     return {
         elapsed = os.time() - S.tracker.start,
@@ -1527,8 +1561,15 @@ Watchdog.register("autosave", function()
         task.wait(30)
         Watchdog.beat("autosave")
         pcall(function()
-            local cur = HS:JSONEncode(S)
-            if cur ~= S.__lastCfg then saveCfg(S); S.__lastCfg = cur end
+            local snap = {}
+            for _, k in ipairs(SAVE_KEYS) do
+                snap[k] = S[k]
+            end
+            local cur = HS:JSONEncode(snap)
+            if cur ~= S.__lastCfg then
+                saveCfg(S)
+                S.__lastCfg = cur
+            end
         end)
     end
 end)
@@ -1551,9 +1592,6 @@ end)
 Watchdog.spawn("tracker-report")
 
 -- PART 6a END
--- 
--- Часть 6б/6 — UI (Match · Lobby · Misc · Webhook)
--- 
 Stage("part3/21-ui")
 local W = RF:CreateWindow({
     Title="wertlaider", Author="wertlaider", Folder="Wertlaider2",
@@ -1781,5 +1819,14 @@ end})
 
 RF:Notify({Title="wertlaider", Content="Загружен", Duration=3})
 
+_G.__WL_Stop = function()
+    local g = _G.__WL
+    if not g or not g.S then return end
+    g.S.Running = false
+    g.S.macroRec = false
+    g.S.macroPlay = false
+    if g.S.__wlStop then return end
+    g.S.__wlStop = true
+end
+
 -- PART 6b END
--- 
