@@ -1,127 +1,26 @@
-local function Log(tag, ...) end
-local function Stage(name) end
+local VARIANT_SUFFIXES = {" Gold", " Rainbow", " Shiny", " Void"}
 
-Stage("part1/1-ui-load")
-local RF, UI_err
-do
-    local ok, res = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua")
-    end)
-    if not ok then UI_err = "HttpGet: " .. tostring(res)
-    elseif type(res) ~= "string" or #res < 1000 then UI_err = "bad response"
-    else
-        local fn, err = loadstring(res)
-        if not fn then UI_err = "loadstring: " .. tostring(err)
-        else
-            local ok2, lib = pcall(fn)
-            if not ok2 then UI_err = "run: " .. tostring(lib) else RF = lib end
+local function unitVariant(name)
+    local s = tostring(name or "")
+    for _, suf in ipairs(VARIANT_SUFFIXES) do
+        if s:sub(-#suf) == suf then
+            if suf == " Shiny" or suf == " Gold" then return "Shiny" end
+            return "Void"
         end
     end
-end
-if not RF then return end
-
-Stage("part1/2-core")
-local P  = game:GetService("Players")
-local RS = game:GetService("ReplicatedStorage")
-local WS = game:GetService("Workspace")
-local HS = game:GetService("HttpService")
-local L  = game:GetService("Lighting")
-local R2 = game:GetService("RunService")
-local LP = P.LocalPlayer
-
-local DEF_URL   = ""
-local SAVE_FILE = "wertlaider_cfg.json"
-
-Stage("part1/3-remotes")
-local fn = RS:FindFirstChild("Functions")
-local ev = RS:FindFirstChild("Events")
-local rm = RS:FindFirstChild("Remotes")
-local R = {}
-R.Req   = fn and fn:FindFirstChild("RequestTower")
-R.Spawn = fn and fn:FindFirstChild("SpawnTower")
-R.Upg   = fn and fn:FindFirstChild("UpgradeTower")
-R.Sell  = fn and fn:FindFirstChild("SellTower")
-R.Skip  = fn and fn:FindFirstChild("VoteSkip")
-R.Spd   = fn and fn:FindFirstChild("ChangeSpeed")
-R.Place = fn and fn:FindFirstChild("GetPlayerPlacement")
-R.Data  = rm and rm:FindFirstChild("PlayerData") and rm.PlayerData:FindFirstChild("GetData")
-R.Sum   = rm and rm:FindFirstChild("Summon") and rm.Summon:FindFirstChild("Summon")
-R.SumP  = rm and rm:FindFirstChild("Summon") and rm.Summon:FindFirstChild("SummonPremium")
-R.Buy   = rm and rm:FindFirstChild("Inventory") and rm.Inventory:FindFirstChild("BuyCrate")
-R.Open  = rm and rm:FindFirstChild("Inventory") and rm.Inventory:FindFirstChild("OpenCrate")
-local AM = ev and ev:FindFirstChild("AntiMacro")
-R.AC = AM and AM:FindFirstChild("Check")
-R.AR = AM and AM:FindFirstChild("Respond")
-R.VM = ev and ev:FindFirstChild("VoteForMap")
-R.VC = ev and ev:FindFirstChild("VoteForComplication")
-R.SM = ev and ev:FindFirstChild("SlopMutator")
-R.AB = ev and ev:FindFirstChild("ActivateAbility")
-R.EX = ev and ev:FindFirstChild("ExitGame")
-R.ED = ev and ev:FindFirstChild("EndDecision")
-R.EE = ev and ev:FindFirstChild("EnterElevator")
-R.SE = ev and ev:FindFirstChild("StartElevator")
-local GetCD = fn and fn:FindFirstChild("GetAbilityCooldown")
-
-Stage("part1/3.5-tracer")
-local TRACE_DIR  = "wl_traces"
-local TRACE_FILE = TRACE_DIR .. "/traces.log"
-local function traceLog(tag, ...) end
-local function wrapRemote(name, obj) return obj end
-local _R_orig = R
-
-Stage("part1/3.6-confirm")
-local Confirm = {
-    mapVoteAt=0, mapVoteOK=false, compVoteAt=0, compVoteOK=false,
-    elevEnterAt=0, elevEnterOK=false, elevStartAt=0, elevStartOK=false,
-    teleportedAt=0,
-}
-local function safeConnect(inst, handler, tag)
-    if not inst then return end
-    pcall(function() inst.OnClientEvent:Connect(handler) end)
+    return "Normal"
 end
 
-safeConnect(ev and ev:FindFirstChild("UpdateVoteCount"), function(...)
-    if os.clock() - Confirm.mapVoteAt < 3 then Confirm.mapVoteOK = true end
-end, "UpdateVoteCount")
-
-safeConnect(ev and ev:FindFirstChild("UpdateComplicationVoteCount"), function(...)
-    if os.clock() - Confirm.compVoteAt < 3 then Confirm.compVoteOK = true end
-end, "UpdateComplicationVoteCount")
-
-safeConnect(ev and ev:FindFirstChild("ElevatorEntered"), function(...)
-    if os.clock() - Confirm.elevEnterAt < 8 then Confirm.elevEnterOK = true end
-end, "ElevatorEntered")
-
-safeConnect(ev and ev:FindFirstChild("OnTeleported"), function(...)
-    Confirm.teleportedAt = os.clock()
-end, "OnTeleported")
-Stage("part1/3.7-watchdog")
-local Watchdog = { loops = {} }
-function Watchdog.register(name, fn)
-    Watchdog.loops[name] = { fn=fn, alive=false, lastBeat=os.clock() }
-end
-function Watchdog.beat(name)
-    local L2 = Watchdog.loops[name]
-    if L2 then L2.lastBeat = os.clock() end
-end
-function Watchdog.spawn(name)
-    local L2 = Watchdog.loops[name]
-    if not L2 or L2.alive then return end
-    L2.alive = true
-    L2.lastBeat = os.clock()
-    task.spawn(function()
-        while _G.__WL and _G.__WL.S and _G.__WL.S.Running do
-            local ok, err = pcall(L2.fn)
-            L2.alive = false
-            task.wait(2)
-            if not (_G.__WL and _G.__WL.S and _G.__WL.S.Running) then break end
-            L2.alive = true
+local function unitBase(name)
+    local s = tostring(name or "")
+    for _, suf in ipairs(VARIANT_SUFFIXES) do
+        if s:sub(-#suf) == suf then
+            local b = s:sub(1, #s - #suf)
+            if b ~= "" then return b end
         end
-        L2.alive = false
-    end)
+    end
+    return s
 end
-_G.__WL_Watchdog = Watchdog
-
 Stage("part1/4-config")
 local SAVE_KEYS = {
     "am","sel","sk","sp","vm","vc","vmut",
@@ -213,6 +112,30 @@ local function ivc()
     local i = WS:FindFirstChild("Info")
     local v = i and i:FindFirstChild("ComplicationVoting")
     return v and v.Value
+end
+
+local VARIANT_SUFFIXES = {" Gold", " Rainbow", " Shiny", " Void"}
+
+local function unitVariant(name)
+    local s = tostring(name or "")
+    for _, suf in ipairs(VARIANT_SUFFIXES) do
+        if s:sub(-#suf) == suf then
+            if suf == " Shiny" or suf == " Gold" then return "Shiny" end
+            return "Void"
+        end
+    end
+    return "Normal"
+end
+
+local function unitBase(name)
+    local s = tostring(name or "")
+    for _, suf in ipairs(VARIANT_SUFFIXES) do
+        if s:sub(-#suf) == suf then
+            local b = s:sub(1, #s - #suf)
+            if b ~= "" then return b end
+        end
+    end
+    return s
 end
 
 local mnCacheList, mnCacheAt = {}, 0
@@ -308,21 +231,17 @@ task.spawn(function()
     pcall(function()
         local info = WS:WaitForChild("Info", 15)
         if not info then return end
-        local lastR, lastW = nil, nil
         while S.Running do
             task.wait(1)
             local r = info:FindFirstChild("GameRunning")
             local w = info:FindFirstChild("Wave")
-            local rv = r and r.Value
-            local wvv = w and tonumber(w.Value) or 0
-            if wvv ~= lastW then lastW = wvv end
-            lastR = rv
+            r and r.Value; w and tonumber(w.Value)
         end
     end)
 end)
 
 task.spawn(function()
-    local ok = pcall(initTracker)
+    pcall(initTracker)
 end)
 
 _G.__WL = {
@@ -333,7 +252,7 @@ _G.__WL = {
     saveCfg=saveCfg, loadCfg=loadCfg, loadUrl=loadUrl,
     rnd=rnd, wv=wv, rn=rn, sd=sd, ivm=ivm, ivc=ivc, mn=mn, lv=lv,
     readVal=readVal, uu=uu, getMaterials=getMaterials, initTracker=initTracker,
-    wrapRemote=wrapRemote,
+    wrapRemote=wrapRemote, unitBase=unitBase, unitVariant=unitVariant,
     _R_orig=_R_orig, DEF_URL=DEF_URL, SAVE_FILE=SAVE_FILE, SAVE_KEYS=SAVE_KEYS,
     TRACE_DIR=TRACE_DIR, TRACE_FILE=TRACE_FILE,
 }
@@ -348,6 +267,8 @@ local rnd, wv, rn, sd, ivm, ivc = G.rnd, G.wv, G.rn, G.sd, G.ivm, G.ivc
 local mn, lv, readVal, uu = G.mn, G.lv, G.readVal, G.uu
 local getMaterials, initTracker = G.getMaterials, G.initTracker
 local wrapRemote = G.wrapRemote
+local unitBase = G.unitBase
+local unitVariant = G.unitVariant
 local _R_orig = G._R_orig
 local DEF_URL, SAVE_FILE, SAVE_KEYS = G.DEF_URL, G.SAVE_FILE, G.SAVE_KEYS
 local TRACE_DIR, TRACE_FILE = G.TRACE_DIR, G.TRACE_FILE
@@ -530,7 +451,12 @@ local function mAttach(t, recordPlace)
         local price = 0
         local pv = cfg:FindFirstChild("Price")
         if pv then price = tonumber(pv.Value) or 0 end
-        mPush({Type="Place", Handle=handle, Unit=tHandle(t), CFrame=cfArr(t:GetPivot()), Cost=price})
+        local unitId = tHandle(t)
+        mPush({
+            Type="Place", Handle=handle, Unit=unitId,
+            BaseUnit=unitBase(unitId), Variant=unitVariant(unitId),
+            CFrame=cfArr(t:GetPivot()), Cost=price,
+        })
     end
 
     local lvlVal = cfg:FindFirstChild("LVL")
@@ -539,7 +465,12 @@ local function mAttach(t, recordPlace)
             local newLvl = tonumber(lvlVal.Value) or meta.Level
             if S.macroRec and newLvl > meta.Level then
                 for i = meta.Level + 1, newLvl do
-                    mPush({Type="Upgrade", Handle=meta.Handle, Unit=tHandle(t), PreviousLevel=i-1, Level=i})
+                    local unitId = tHandle(t)
+                    mPush({
+                        Type="Upgrade", Handle=meta.Handle, Unit=unitId,
+                        BaseUnit=unitBase(unitId), Variant=unitVariant(unitId),
+                        PreviousLevel=i-1, Level=i,
+                    })
                 end
                 meta.LastUpgradeAt = os.clock()
             end
@@ -667,6 +598,12 @@ local function mLoad(name)
                 S.macroName = name
                 S.macroActions = data.actions
                 S.macroPlaceId = tonumber(data.placeId)
+                for _, act in ipairs(data.actions) do
+                    if (act.Type == "Place" or act.Type == "Upgrade") and act.Unit then
+                        if not act.BaseUnit or act.BaseUnit == "" then act.BaseUnit = unitBase(act.Unit) end
+                        if not act.Variant  or act.Variant  == "" then act.Variant  = unitVariant(act.Unit) end
+                    end
+                end
                 return true, #data.actions
             end
             lastErr = "битый: " .. tostring(p):sub(-30)
@@ -699,10 +636,10 @@ local function mDispatch(a)
     if kind == "Place" then
         local cf = arrCf(a.CFrame)
         if not cf then return false, "bad CFrame" end
-        local base = tostring(a.BaseUnit or "")
         local unit = tostring(a.Unit or "")
+        local base = tostring(a.BaseUnit or "")
         if unit == "" then return false, "bad unit" end
-        if base == "" then base = unit end
+        if base == "" then base = unitBase(unit) end
 
         local deadline = os.clock() + 300
         while S.macroPlay and os.clock() < deadline do
