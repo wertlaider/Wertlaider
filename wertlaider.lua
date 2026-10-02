@@ -1,3 +1,127 @@
+local function Log(tag, ...) end
+local function Stage(name) end
+
+Stage("part1/1-ui-load")
+local RF, UI_err
+do
+    local ok, res = pcall(function()
+        return game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua")
+    end)
+    if not ok then UI_err = "HttpGet: " .. tostring(res)
+    elseif type(res) ~= "string" or #res < 1000 then UI_err = "bad response"
+    else
+        local fn, err = loadstring(res)
+        if not fn then UI_err = "loadstring: " .. tostring(err)
+        else
+            local ok2, lib = pcall(fn)
+            if not ok2 then UI_err = "run: " .. tostring(lib) else RF = lib end
+        end
+    end
+end
+if not RF then return end
+
+Stage("part1/2-core")
+local P  = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local WS = game:GetService("Workspace")
+local HS = game:GetService("HttpService")
+local L  = game:GetService("Lighting")
+local R2 = game:GetService("RunService")
+local LP = P.LocalPlayer
+
+local DEF_URL   = ""
+local SAVE_FILE = "wertlaider_cfg.json"
+
+Stage("part1/3-remotes")
+local fn = RS:FindFirstChild("Functions")
+local ev = RS:FindFirstChild("Events")
+local rm = RS:FindFirstChild("Remotes")
+local R = {}
+R.Req   = fn and fn:FindFirstChild("RequestTower")
+R.Spawn = fn and fn:FindFirstChild("SpawnTower")
+R.Upg   = fn and fn:FindFirstChild("UpgradeTower")
+R.Sell  = fn and fn:FindFirstChild("SellTower")
+R.Skip  = fn and fn:FindFirstChild("VoteSkip")
+R.Spd   = fn and fn:FindFirstChild("ChangeSpeed")
+R.Place = fn and fn:FindFirstChild("GetPlayerPlacement")
+R.Data  = rm and rm:FindFirstChild("PlayerData") and rm.PlayerData:FindFirstChild("GetData")
+R.Sum   = rm and rm:FindFirstChild("Summon") and rm.Summon:FindFirstChild("Summon")
+R.SumP  = rm and rm:FindFirstChild("Summon") and rm.Summon:FindFirstChild("SummonPremium")
+R.Buy   = rm and rm:FindFirstChild("Inventory") and rm.Inventory:FindFirstChild("BuyCrate")
+R.Open  = rm and rm:FindFirstChild("Inventory") and rm.Inventory:FindFirstChild("OpenCrate")
+local AM = ev and ev:FindFirstChild("AntiMacro")
+R.AC = AM and AM:FindFirstChild("Check")
+R.AR = AM and AM:FindFirstChild("Respond")
+R.VM = ev and ev:FindFirstChild("VoteForMap")
+R.VC = ev and ev:FindFirstChild("VoteForComplication")
+R.SM = ev and ev:FindFirstChild("SlopMutator")
+R.AB = ev and ev:FindFirstChild("ActivateAbility")
+R.EX = ev and ev:FindFirstChild("ExitGame")
+R.ED = ev and ev:FindFirstChild("EndDecision")
+R.EE = ev and ev:FindFirstChild("EnterElevator")
+R.SE = ev and ev:FindFirstChild("StartElevator")
+local GetCD = fn and fn:FindFirstChild("GetAbilityCooldown")
+
+Stage("part1/3.5-tracer")
+local TRACE_DIR  = "wl_traces"
+local TRACE_FILE = TRACE_DIR .. "/traces.log"
+local function traceLog(tag, ...) end
+local function wrapRemote(name, obj) return obj end
+local _R_orig = R
+
+Stage("part1/3.6-confirm")
+local Confirm = {
+    mapVoteAt=0, mapVoteOK=false, compVoteAt=0, compVoteOK=false,
+    elevEnterAt=0, elevEnterOK=false, elevStartAt=0, elevStartOK=false,
+    teleportedAt=0,
+}
+local function safeConnect(inst, handler, tag)
+    if not inst then return end
+    pcall(function() inst.OnClientEvent:Connect(handler) end)
+end
+
+safeConnect(ev and ev:FindFirstChild("UpdateVoteCount"), function(...)
+    if os.clock() - Confirm.mapVoteAt < 3 then Confirm.mapVoteOK = true end
+end, "UpdateVoteCount")
+
+safeConnect(ev and ev:FindFirstChild("UpdateComplicationVoteCount"), function(...)
+    if os.clock() - Confirm.compVoteAt < 3 then Confirm.compVoteOK = true end
+end, "UpdateComplicationVoteCount")
+
+safeConnect(ev and ev:FindFirstChild("ElevatorEntered"), function(...)
+    if os.clock() - Confirm.elevEnterAt < 8 then Confirm.elevEnterOK = true end
+end, "ElevatorEntered")
+
+safeConnect(ev and ev:FindFirstChild("OnTeleported"), function(...)
+    Confirm.teleportedAt = os.clock()
+end, "OnTeleported")
+Stage("part1/3.7-watchdog")
+local Watchdog = { loops = {} }
+function Watchdog.register(name, fn)
+    Watchdog.loops[name] = { fn=fn, alive=false, lastBeat=os.clock() }
+end
+function Watchdog.beat(name)
+    local L2 = Watchdog.loops[name]
+    if L2 then L2.lastBeat = os.clock() end
+end
+function Watchdog.spawn(name)
+    local L2 = Watchdog.loops[name]
+    if not L2 or L2.alive then return end
+    L2.alive = true
+    L2.lastBeat = os.clock()
+    task.spawn(function()
+        while _G.__WL and _G.__WL.S and _G.__WL.S.Running do
+            local ok, err = pcall(L2.fn)
+            L2.alive = false
+            task.wait(2)
+            if not (_G.__WL and _G.__WL.S and _G.__WL.S.Running) then break end
+            L2.alive = true
+        end
+        L2.alive = false
+    end)
+end
+_G.__WL_Watchdog = Watchdog
+
 local VARIANT_SUFFIXES = {" Gold", " Rainbow", " Shiny", " Void"}
 
 local function unitVariant(name)
@@ -21,6 +145,7 @@ local function unitBase(name)
     end
     return s
 end
+
 Stage("part1/4-config")
 local SAVE_KEYS = {
     "am","sel","sk","sp","vm","vc","vmut",
@@ -112,30 +237,6 @@ local function ivc()
     local i = WS:FindFirstChild("Info")
     local v = i and i:FindFirstChild("ComplicationVoting")
     return v and v.Value
-end
-
-local VARIANT_SUFFIXES = {" Gold", " Rainbow", " Shiny", " Void"}
-
-local function unitVariant(name)
-    local s = tostring(name or "")
-    for _, suf in ipairs(VARIANT_SUFFIXES) do
-        if s:sub(-#suf) == suf then
-            if suf == " Shiny" or suf == " Gold" then return "Shiny" end
-            return "Void"
-        end
-    end
-    return "Normal"
-end
-
-local function unitBase(name)
-    local s = tostring(name or "")
-    for _, suf in ipairs(VARIANT_SUFFIXES) do
-        if s:sub(-#suf) == suf then
-            local b = s:sub(1, #s - #suf)
-            if b ~= "" then return b end
-        end
-    end
-    return s
 end
 
 local mnCacheList, mnCacheAt = {}, 0
@@ -823,7 +924,6 @@ Watchdog.register("autocontrol", function()
                 S.__abCdMatch = S.tracker.matches
                 S.abCd = setmetatable({},{__mode="k"})
             end
-
             if S.sk and rn() and R.Skip and os.clock() - S.ls > 7 + math.random() * 3 then
                 S.ls = os.clock()
                 pcall(function() R.Skip:InvokeServer() end)
@@ -832,7 +932,6 @@ Watchdog.register("autocontrol", function()
                 S.lsp = os.clock()
                 pcall(function() R.Spd:InvokeServer(S.sv) end)
             end
-
             if S.vm and R.VM and ivm() then
                 if not S.__votedMap then
                     Confirm.mapVoteAt = os.clock()
@@ -853,7 +952,6 @@ Watchdog.register("autocontrol", function()
                 S.__votedMap = false
                 S.__votedMapDeadline = nil
             end
-
             if S.vc and R.VC and ivc() then
                 if not S.__votedComp then
                     Confirm.compVoteAt = os.clock()
@@ -874,7 +972,6 @@ Watchdog.register("autocontrol", function()
                 S.__votedComp = false
                 S.__votedCompDeadline = nil
             end
-
             if S.ab and rn() and R.AB and GetCD then
                 if os.clock() - (S.__lastCD or 0) > 5 then
                     S.__lastCD = os.clock()
