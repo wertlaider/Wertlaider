@@ -196,8 +196,9 @@ local SAVE_KEYS = {
     "lobby","jump","walk","fps","blk","hid",
     "endAct","mapV","compV","sv",
     "am1","am2","sellW","wh","url",
-    "elevType","macroName","macroSpeed",
+        "elevType","macroName","macroSpeed","macroPlay",
     "ab","abWave","abWaveOn","abBoss","abDelay"
+}
 }
 
 local function loadUrl()
@@ -1970,7 +1971,7 @@ recToggle = T1:Toggle({Title="Record",
 
 playToggle = T1:Toggle({Title="Play",
     Desc="ON = play macro | OFF = stop",
-    Value=false,
+    Value=(S.macroPlay == true),
     Callback=function(v)
         if uiSuppress then return end
         if v then
