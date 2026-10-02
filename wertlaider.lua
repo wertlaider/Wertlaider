@@ -399,9 +399,6 @@ task.spawn(function()
         if not info then return end
         while S.Running do
             task.wait(1)
-            local r = info:FindFirstChild("GameRunning")
-            local w = info:FindFirstChild("Wave")
-            r and r.Value; w and tonumber(w.Value)
         end
     end)
 end)
