@@ -775,8 +775,10 @@ _G.__WL_Macros = {
 }
 
 -- PART 4 END
+-- 
 -- ══════════════════════════════════════════════════════════════════
--- Часть 5/6 — AutoSell · AutoControl · Mutators · AutoSummon · AutoCrates
+-- Часть 5/6 — AutoSell · AutoControl · Mutators ·
+--             AutoSummon · AutoCrates
 -- ══════════════════════════════════════════════════════════════════
 
 Stage("part2/10-autosell")
@@ -1141,7 +1143,12 @@ end)
 Watchdog.spawn("autocrates")
 
 -- PART 5 END
--- Stage("part2/14-autoelevator")
+-- ══════════════════════════════════════════════════════════════════
+-- Часть 6а/6 — AutoElevator · MatchEnd · AntiAFK ·
+--                Performance · Webhook · Autosave · Tracker-report
+-- ══════════════════════════════════════════════════════════════════
+
+Stage("part2/14-autoelevator")
 local function getPadPos(elev)
     if not elev then return nil end
     local best, bestScore = nil, 0
@@ -1473,6 +1480,10 @@ end)
 Watchdog.spawn("tracker-report")
 
 -- PART 6a END
+-- ══════════════════════════════════════════════════════════════════
+-- Часть 6б/6 — UI (Match · Lobby · Misc · Webhook)
+-- ══════════════════════════════════════════════════════════════════
+
 Stage("part3/21-ui")
 local W = RF:CreateWindow({
     Title="wertlaider", Author="wertlaider", Folder="Wertlaider2",
@@ -1535,30 +1546,73 @@ T1:Input({Title="Macro Name", Placeholder="base1", Value=S.macroName,
 T1:Slider({Title="Playback Speed", Step=0.25,
     Value={Min=0.25, Max=4, Default=S.macroSpeed},
     Callback=function(v) S.macroSpeed = tonumber(v) or 1 end})
-T1:Button({Title="REC (start recording)", Callback=function()
-    local ok, err = _G.__WL_Macros.StartRec(S.macroName)
-    RF:Notify({Title="wertlaider", Content= ok and ("REC: "..S.macroName) or ("Ошибка: "..tostring(err)), Duration=3})
-end})
-T1:Button({Title="STOP REC (auto-save)", Callback=function()
-    local ok, err = _G.__WL_Macros.StopRec(true)
-    RF:Notify({Title="wertlaider", Content= ok and ("Стоп. Сохранено "..tostring(#S.macroActions).." действий") or ("Ошибка: "..tostring(err)), Duration=3})
-end})
-T1:Button({Title="PLAY", Callback=function()
-    local ok, err = _G.__WL_Macros.Play()
-    RF:Notify({Title="wertlaider", Content= ok and "Играем макрос" or ("Ошибка: "..tostring(err)), Duration=3})
-end})
-T1:Button({Title="STOP PLAY", Callback=function()
-    _G.__WL_Macros.Stop()
-    RF:Notify({Title="wertlaider", Content="Плейбек остановлен", Duration=2})
-end})
-T1:Button({Title="LOAD", Callback=function()
-    local ok, err = _G.__WL_Macros.Load(S.macroName)
-    RF:Notify({Title="wertlaider", Content= ok and ("Загружен: "..S.macroName.." ("..tostring(#S.macroActions)..")") or ("Ошибка: "..tostring(err)), Duration=3})
-end})
-T1:Button({Title="SAVE (manual)", Callback=function()
-    local ok, err = _G.__WL_Macros.Save()
-    RF:Notify({Title="wertlaider", Content= ok and "Сохранено" or ("Ошибка: "..tostring(err)), Duration=2})
-end})
+
+local macroList = _G.__WL_Macros.List()
+if #macroList == 0 then macroList = {"(none)"} end
+T1:Dropdown({Title="Select Macro",
+    Values=macroList,
+    Value=(S.macroName ~= "" and S.macroName or "(none)"),
+    Multi=false, SearchBarEnabled=true,
+    Callback=function(v)
+        if v == "(none)" then return end
+        local ok, err = _G.__WL_Macros.Load(v)
+        RF:Notify({Title="wertlaider",
+            Content= ok and ("Загружен: "..v.." ("..tostring(#S.macroActions)..")")
+                          or ("Ошибка: "..tostring(err)), Duration=3})
+    end})
+
+local uiSuppress = false
+local recToggle, playToggle
+
+recToggle = T1:Toggle({Title="Record",
+    Desc="ВКЛ — писать, ВЫКЛ — сохранить и остановить",
+    Value=false,
+    Callback=function(v)
+        if uiSuppress then return end
+        if v then
+            if S.macroPlay then
+                uiSuppress = true; playToggle:Set(false); uiSuppress = false
+            end
+            local ok, err = _G.__WL_Macros.StartRec(S.macroName)
+            if not ok then
+                uiSuppress = true; recToggle:Set(false); uiSuppress = false
+                RF:Notify({Title="wertlaider", Content="REC fail: "..tostring(err), Duration=3})
+            else
+                RF:Notify({Title="wertlaider", Content="REC: "..S.macroName, Duration=2})
+            end
+        else
+            local ok, err = _G.__WL_Macros.StopRec(true)
+            if ok then
+                RF:Notify({Title="wertlaider",
+                    Content="Сохранено: "..tostring(#S.macroActions).." действий", Duration=2})
+            else
+                RF:Notify({Title="wertlaider", Content="Save fail: "..tostring(err), Duration=3})
+            end
+        end
+    end})
+
+playToggle = T1:Toggle({Title="Play",
+    Desc="ВКЛ — играть макрос, ВЫКЛ — стоп",
+    Value=false,
+    Callback=function(v)
+        if uiSuppress then return end
+        if v then
+            if S.macroRec then
+                uiSuppress = true; recToggle:Set(false); uiSuppress = false
+                _G.__WL_Macros.StopRec(true)
+            end
+            local ok, err = _G.__WL_Macros.Play()
+            if not ok then
+                uiSuppress = true; playToggle:Set(false); uiSuppress = false
+                RF:Notify({Title="wertlaider", Content="PLAY fail: "..tostring(err), Duration=3})
+            else
+                RF:Notify({Title="wertlaider", Content="Играем", Duration=2})
+            end
+        else
+            _G.__WL_Macros.Stop()
+            RF:Notify({Title="wertlaider", Content="Стоп", Duration=2})
+        end
+    end})
 
 T1:Section({Title="Control"})
 T1:Toggle({Title="Auto Skip", Value=S.sk, Callback=function(v) S.sk = v end})
