@@ -1562,7 +1562,7 @@ Watchdog.spawn("autoelevator")
 -- ------------------------------------------------------------
 Stage("part2/15-matchend")
 local function isEndScreen()
-    local pg = LP:FindFirstChild("PlayerGui")
+    local pg = LP:FindFirstChildOfClass("PlayerGui")
     local gg = pg and pg:FindFirstChild("GameGui")
     local es = gg and gg:FindFirstChild("EndScreen")
     if not es then return false end
@@ -1570,8 +1570,41 @@ local function isEndScreen()
     if es:IsA("GuiObject") then return es.Visible end
     return false
 end
+
+local function clickButton(btn)
+    if not btn then return false, "no_btn" end
+    local mb = btn.MouseButton1Click
+    local ac = btn.Activated
+    if type(firesignal) == "function" then
+        local sig = mb
+        if type(getconnections) == "function" and #getconnections(mb) == 0 then sig = ac end
+        if pcall(firesignal, sig) then return true, "firesignal" end
+    end
+    if type(getconnections) == "function" then
+        local conns = getconnections(mb)
+        if #conns == 0 then conns = getconnections(ac) end
+        local fired = false
+        for _, c in ipairs(conns) do
+            if type(c.Fire) == "function" then fired = pcall(c.Fire, c) or fired
+            elseif type(c.Function) == "function" then fired = pcall(c.Function) or fired end
+        end
+        if fired then return true, "getconnections" end
+    end
+    local ok, VIM = pcall(game.GetService, game, "VirtualInputManager")
+    if ok and VIM then
+        local pos = btn.AbsolutePosition + btn.AbsoluteSize * 0.5
+        local ok2 = pcall(function()
+            VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
+            VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
+        end)
+        if ok2 then return true, "VIM" end
+    end
+    return false, "all_failed"
+end
+
 local lastRun = false
 local fired = false
+
 Watchdog.register("matchend", function()
     while S.Running do
         task.wait(2)
@@ -1587,52 +1620,38 @@ Watchdog.register("matchend", function()
             end
             lastRun = running
             if ended and not fired then
-    fired = true
-    local pg = LP:FindFirstChildOfClass("PlayerGui")
-    local es = pg and pg:FindFirstChild("GameGui") and pg.GameGui:FindFirstChild("EndScreen")
-    local wantText = nil
-    if S.endAct == "Replay" then wantText = {"replay","again"}
-    elseif S.endAct == "New Map" then wantText = {"new map","newmap","next"}
-    elseif S.endAct == "Lobby" then wantText = {"lobby","menu","exit","leave","return"}
-    end
-    local clicked = false
-    if es and wantText then
-        for _, d in ipairs(es:GetDescendants()) do
-            if d:IsA("GuiButton") then
-                local txt = tostring(d.Text or ""):lower()
-                for _, w in ipairs(wantText) do
-                    if txt:find(w, 1, true) then
-                        if type(firesignal) == "function" then
-                            pcall(firesignal, d.MouseButton1Click)
-                        end
-                        if type(getconnections) == "function" then
-                            for _, c in ipairs(getconnections(d.MouseButton1Click)) do
-                                if type(c.Fire) == "function" then pcall(c.Fire, c) end
+                fired = true
+                task.wait(1.5)
+                if not isEndScreen() then fired = false; return end
+                local pg = LP:FindFirstChildOfClass("PlayerGui")
+                local wantText = nil
+                if S.endAct == "Replay" then wantText = {"replay"}
+                elseif S.endAct == "New Map" then wantText = {"new map","newmap"}
+                elseif S.endAct == "Lobby" then wantText = {"lobby"}
+                end
+                if pg and wantText then
+                    for _, d in ipairs(pg:GetDescendants()) do
+                        if d:IsA("GuiButton") then
+                            local txt = tostring(d.Text or ""):lower()
+                            local match = false
+                            for _, w in ipairs(wantText) do
+                                if txt:find(w, 1, true) then match = true; break end
+                            end
+                            if match then
+                                clickButton(d)
+                                break
                             end
                         end
-                        clicked = true
-                        break
                     end
                 end
-                if clicked then break end
+            elseif not ended then
+                fired = false
             end
-        end
-    end
-    if not clicked then
-        if S.endAct == "Replay" and R.ED then pcall(function() R.ED:FireServer(true) end)
-        elseif S.endAct == "New Map" and R.ED then pcall(function() R.ED:FireServer("new") end)
-        elseif S.endAct == "Lobby" and R.EX then pcall(function() R.EX:FireServer() end) end
-    end
-elseif not ended then
-    fired = false
-end
         end)
         if not ok then task.wait(2) end
     end
 end)
-Watchdog.spawn("matchend")
-
--- ------------------------------------------------------------
+Watchdog.spawn("matchend") ------------------------------------------------------------
 -- [BLOCK 52] AntiAFK: autojump + walkaround
 -- ------------------------------------------------------------
 Stage("part2/16-antiafk")
